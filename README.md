@@ -74,7 +74,7 @@ The system is built on a high-throughput microservices architecture operating wi
 | **Object Storage** | MinIO (S3 Compatible) | Centralized blob storage hosting `raw-assets` and `processed-assets` buckets. |
 | **Message Broker** | RabbitMQ (AMQP) | Durable, persistent task queues with dead-letter exchange support (`asset_processing_dlx`). |
 | **In-Memory Store** | Redis 7 | High-speed cache, real-time SSE Pub/Sub bus, download analytics leaderboards, rate limits, worker locks. |
-| **Database** | PostgreSQL 16 | Relational metadata store for asset records, taxonomy tags, asset-tag mappings, and execution states. |
+| **Database** | PostgreSQL 18 (Alpine) | Relational metadata store for asset records, taxonomy tags, asset-tag mappings, and execution states. |
 
 ---
 
