@@ -1,5 +1,5 @@
 import amqp, { Channel, ChannelModel } from 'amqplib';
-import { env } from '../config/env.js';
+import { env } from '../config/env';
 
 let connection: ChannelModel | null = null;
 let channel: Channel | null = null;

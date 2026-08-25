@@ -1,0 +1,33 @@
+{
+  "name": "dam-worker",
+  "version": "1.0.0",
+  "description": "Stateless Background Worker Service for Digital Asset Management Platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "prisma:generate": "prisma generate --schema=../backend/prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.525.0",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "@types/minio": "^7.1.0",
+    "amqplib": "^0.10.3",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.3.2",
+    "minio": "^8.0.7",
+    "pg": "^8.23.0",
+    "sharp": "^0.33.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/node": "^20.11.24",
+    "@types/pg": "^8.23.1",
+    "prisma": "^7.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

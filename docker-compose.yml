@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
       POSTGRES_DB: ${POSTGRES_DB:-dam_db}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -17,7 +17,7 @@ services:
     networks:
       - dam_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dam_db}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dam_db}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -35,7 +35,7 @@ services:
       - dam_net
     command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -56,14 +56,14 @@ services:
     networks:
       - dam_net
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # 4. MinIO S3 Object Storage
   minio:
-    image: minio/minio:RELEASE.2024-03-21T23-13-43Z
+    image: minio/minio:latest
     container_name: dam_minio
     restart: unless-stopped
     environment:
@@ -78,14 +78,14 @@ services:
     networks:
       - dam_net
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: [ "CMD", "mc", "ready", "local" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   # 5. MinIO Bucket Initialization Helper (One-Shot Container)
   create-buckets:
-    image: minio/mc:RELEASE.2024-03-21T18-19-14Z
+    image: minio/mc:latest
     container_name: dam_create_buckets
     restart: "no"
     environment:
@@ -96,17 +96,10 @@ services:
     networks:
       - dam_net
     entrypoint: >
-      /bin/sh -c "
-      until /usr/bin/mc alias set myminio http://minio:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD; do
+      /bin/sh -c " until /usr/bin/mc alias set myminio http://minio:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD; do
         echo 'Waiting for MinIO...';
         sleep 2;
-      done;
-      /usr/bin/mc mb --ignore-existing myminio/\$MINIO_RAW_BUCKET;
-      /usr/bin/mc mb --ignore-existing myminio/\$MINIO_PROCESSED_BUCKET;
-      /usr/bin/mc anonymous set download myminio/\$MINIO_PROCESSED_BUCKET;
-      echo 'Buckets created successfully!';
-      exit 0;
-      "
+      done; /usr/bin/mc mb --ignore-existing myminio/\$MINIO_RAW_BUCKET; /usr/bin/mc mb --ignore-existing myminio/\$MINIO_PROCESSED_BUCKET; /usr/bin/mc anonymous set download myminio/\$MINIO_PROCESSED_BUCKET; echo 'Buckets created successfully!'; exit 0; "
     depends_on:
       minio:
         condition: service_healthy

@@ -2,7 +2,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -15,7 +14,7 @@ enum Role {
   ADMIN
 }
 
-// 2. Asset Processing Status Enum
+// 2. Asset Status Lifecycle Enum
 enum AssetStatus {
   PENDING_UPLOAD
   QUEUED
@@ -24,7 +23,7 @@ enum AssetStatus {
   FAILED
 }
 
-// 3. User Account Model
+// 3. User Authentication & Authorization Model
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -34,8 +33,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Relation: One User can upload many Assets
-  assets       Asset[]
+  assets Asset[]
 
   @@map("users")
 }
@@ -58,32 +56,30 @@ model Asset {
   updatedAt          DateTime    @updatedAt
 
   // Uploader Relation: Links asset to its contributor
-  uploaderId         String
-  uploader           User        @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  uploaderId String
+  uploader   User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
-  tags               AssetTag[]
+  tags AssetTag[]
 
   @@map("assets")
 }
 
 // 5. Taxonomy Tag Model
 model Tag {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  createdAt DateTime   @default(now())
-
-  assets    AssetTag[]
+  id   String     @id @default(uuid())
+  name String     @unique
+  assets AssetTag[]
 
   @@map("tags")
 }
 
-// 6. Many-to-Many Join Table (Asset <-> Tag)
+// 6. Join Model for Many-to-Many Asset <-> Tag Taxonomy
 model AssetTag {
   assetId String
-  tagId   String
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
-  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([assetId, tagId])
   @@map("asset_tags")

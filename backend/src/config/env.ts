@@ -1,7 +1,8 @@
+import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
-
-// Load variables from .env file into process.env
+// Load variables from root .env file into process.env
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 dotenv.config();
 
 // Define a strict schema to validate all environment variables at startup
@@ -14,7 +15,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
 
   // PostgreSQL Database Connection URL
-  DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/dam_db?schema=public'),
+  DATABASE_URL: z.string().default('postgresql://postgres:root@localhost:5432/dam_db?schema=public'),
 
   // Redis Configuration
   REDIS_HOST: z.string().default('localhost'),

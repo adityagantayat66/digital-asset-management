@@ -1,5 +1,5 @@
 import { Redis } from 'ioredis';
-import { env } from '../config/env.js';
+import { env } from '../config/env';
 
 // 1. Primary Redis Client for Caching, Analytics Counters, and Distributed Locks
 export const redisClient = new Redis({

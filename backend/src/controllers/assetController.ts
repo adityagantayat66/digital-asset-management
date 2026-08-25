@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../services/prisma.js';
-import { generatePresignedUploadUrl, generatePresignedDownloadUrl, getPublicAssetUrl } from '../services/minio.js';
-import { publishProcessingJob } from '../services/rabbitmq.js';
-import { redisClient, redisSubscriber } from '../services/redis.js';
-import { env } from '../config/env.js';
+import { prisma } from '../services/prisma';
+import { generatePresignedUploadUrl, generatePresignedDownloadUrl, getPublicAssetUrl } from '../services/minio';
+import { publishProcessingJob } from '../services/rabbitmq';
+import { redisClient, redisSubscriber } from '../services/redis';
+import { env } from '../config/env';
 
 // Validation Schemas using Zod
 const presignedUrlSchema = z.object({
@@ -32,32 +32,23 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-
-    const parseResult = presignedUrlSchema.safeParse(req.body);
-    if (!parseResult.success) {
-      res.status(400).json({ error: 'Validation Error', details: parseResult.error.format() });
+    const parsedResult = presignedUrlSchema.safeParse(req.body)
+    if (!parsedResult.success) {
+      res.status(400).json({ error: 'Validation Error', details: parsedResult.error.format() })
       return;
     }
-
-    const { filename, mimeType, size, tags = [] } = parseResult.data;
-
-    // 1. Generate unique file key for MinIO raw-assets bucket
+    const { filename, mimeType, tags = [], size } = parsedResult.data;
     const fileExtension = filename.includes('.') ? filename.substring(filename.lastIndexOf('.')) : '';
     const fileKey = `${uuidv4()}${fileExtension}`;
-
-    // 2. Generate Presigned PUT URL for direct client-to-MinIO upload
-    const { uploadUrl, rawPath } = await generatePresignedUploadUrl(fileKey, mimeType);
-
-    // 3. Pre-register asset record in PostgreSQL database linked to contributor (uploaderId)
+    const { uploadUrl, rawPath } = await generatePresignedUploadUrl(fileKey, fileExtension);
     const asset = await prisma.asset.create({
       data: {
         originalName: filename,
         mimeType,
         size,
-        rawPath,
-        status: 'PENDING_UPLOAD',
         uploaderId: req.user.userId,
-        // Process taxonomy tags if provided
+        status: 'PENDING_UPLOAD',
+        rawPath,
         tags: {
           create: await Promise.all(
             tags.map(async (tagName) => {
@@ -68,23 +59,15 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
               });
               return { tagId: tag.id };
             })
-          ),
-        },
-      },
-      include: {
-        tags: { include: { tag: true } },
-        uploader: { select: { id: true, name: true, email: true } },
-      },
+          )
+        }
+      }
     });
 
-    res.status(201).json({
-      assetId: asset.id,
-      uploadUrl,
-      rawPath,
-      status: asset.status,
-      uploader: asset.uploader,
-    });
-  } catch (error) {
+    res.status(200).json({ id: asset.id, uploadUrl, rawPath });
+
+  }
+  catch (error) {
     console.error('❌ Presigned URL Error:', error);
     res.status(500).json({ error: 'Failed to generate presigned upload URL' });
   }
@@ -99,6 +82,7 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
  */
 export async function completeUpload(req: Request, res: Response): Promise<void> {
   try {
+
     if (!req.user) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
@@ -187,7 +171,7 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
   const messageHandler = (channel: string, message: string) => {
     if (channel === channelName) {
       res.write(`data: ${message}\n\n`);
-
+      console.log("This message is sent : ", message);
       // Automatically close stream when job reaches terminal state
       try {
         const parsed = JSON.parse(message);

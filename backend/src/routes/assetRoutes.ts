@@ -6,8 +6,8 @@ import {
   listAssets,
   getAssetById,
   downloadAsset,
-} from '../controllers/assetController.js';
-import { authenticate } from '../middleware/authMiddleware.js';
+} from '../controllers/assetController';
+import { authenticate } from '../middleware/authMiddleware';
 
 const router = Router();
 

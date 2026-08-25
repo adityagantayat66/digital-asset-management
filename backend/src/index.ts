@@ -1,9 +1,9 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import { env } from './config/env.js';
-import authRoutes from './routes/authRoutes.js';
-import assetRoutes from './routes/assetRoutes.js';
-import { connectRabbitMQ } from './services/rabbitmq.js';
+import { env } from './config/env';
+import authRoutes from './routes/authRoutes';
+import assetRoutes from './routes/assetRoutes';
+import { connectRabbitMQ } from './services/rabbitmq';
 
 const app = express();
 
