@@ -40,7 +40,7 @@ async function startWorker() {
                 return;
             }
             const { assetId, rawPath, originalName, mimeType } = result.data;
-            const tempDir = path.join(process.cwd(), 'tmp', assetId);
+            const tempDir = path.join(process.cwd(), 'temp', assetId);
             const tempFilePath = path.join(tempDir, originalName);
             try {
                 const progressMsg = { assetId, progress: 0, status: 'PROCESSING' as const, stage: 'STARTED', error: '' }
@@ -79,7 +79,12 @@ async function startWorker() {
             }
             finally {
                 if (fs.existsSync(tempDir)) {
-                    await fs.promises.rm(tempDir, { recursive: true, force: true });
+                    try {
+                        await fs.promises.rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+                        console.log(`🧹 Successfully cleaned up temp directory: ${tempDir}`);
+                    } catch (cleanupErr) {
+                        console.warn(`⚠️ Warning: Could not remove temp dir ${tempDir}:`, cleanupErr);
+                    }
                 }
             }
             // TODO Update db
