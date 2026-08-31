@@ -18,7 +18,7 @@ router.get('/:id/download', downloadAsset);
 router.get('/:id/progress/stream', streamProgress);
 
 // Protected Upload Endpoints (Requires JWT Authentication)
-router.post('/presigned-url', authenticate, requestPresignedUrl);
-router.post('/complete-upload', authenticate, completeUpload);
+router.post('/presigned-url', requestPresignedUrl);
+router.post('/complete-upload', completeUpload);
 
 export default router;

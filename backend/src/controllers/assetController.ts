@@ -167,6 +167,22 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
   // Send initial connection handshake event
   res.write(`data: ${JSON.stringify({ type: 'CONNECTED', assetId: id })}\n\n`);
 
+  // Send current cached progress snapshot from Redis Hash if present
+  try {
+    const currentProgress = await redisClient.hgetall(`job:${id}:progress`);
+    if (currentProgress && Object.keys(currentProgress).length > 0) {
+      res.write(`data: ${JSON.stringify({
+        assetId: id,
+        progress: Number(currentProgress.progress || 0),
+        status: currentProgress.status || 'QUEUED',
+        stage: currentProgress.stage || '',
+        updatedAt: currentProgress.updatedAt || new Date().toISOString()
+      })}\n\n`);
+    }
+  } catch (err) {
+    console.error(`Failed to read initial progress hash for job:${id}:progress`, err);
+  }
+
   // Subscribe to Redis Pub/Sub channel
   const messageHandler = (channel: string, message: string) => {
     if (channel === channelName) {
@@ -217,7 +233,8 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
     const type = (req.query.type as string) || ''; // 'image' or 'video'
     const tag = (req.query.tag as string) || '';
 
-    const cacheKey = `cache:gallery:p${page}:l${limit}:s${search}:t${type}:tg${tag}`;
+    const userId = req.user?.userId;
+    const cacheKey = `cache:gallery:u:${userId || 'all'}:p${page}:l${limit}:s${search}:t${type}:tg${tag}`;
 
     // 1. Check Redis Cache
     const cachedData = await redisClient.get(cacheKey);
@@ -228,7 +245,9 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
 
     // 2. Build Prisma Where Clause
     const where: any = {};
-
+    if (userId) {
+      where.uploaderId = userId;
+    }
     if (search) {
       where.originalName = { contains: search, mode: 'insensitive' };
     }
@@ -314,9 +333,13 @@ export async function getAssetById(req: Request, res: Response): Promise<void> {
 
     // Generate static public URL for thumbnail, signed URLs for video streams
     const thumbnailUrl = asset.thumbnailUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.thumbnailUrl) : null;
+    let transcodedSdUrl = asset.transcodedSdUrl;
     let transcoded720pUrl = asset.transcoded720pUrl;
     let transcoded1080pUrl = asset.transcoded1080pUrl;
 
+    if (transcodedSdUrl && !transcodedSdUrl.startsWith('http')) {
+      transcodedSdUrl = await generatePresignedDownloadUrl(env.MINIO_PROCESSED_BUCKET, transcodedSdUrl);
+    }
     if (transcoded720pUrl && !transcoded720pUrl.startsWith('http')) {
       transcoded720pUrl = await generatePresignedDownloadUrl(env.MINIO_PROCESSED_BUCKET, transcoded720pUrl);
     }
@@ -327,6 +350,7 @@ export async function getAssetById(req: Request, res: Response): Promise<void> {
     res.status(200).json({
       ...asset,
       thumbnailUrl,
+      transcodedSdUrl,
       transcoded720pUrl,
       transcoded1080pUrl,
       tags: asset.tags.map((t) => t.tag.name),

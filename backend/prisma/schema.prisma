@@ -2,7 +2,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -49,6 +48,7 @@ model Asset {
   rawPath            String
   // Optional fields - populated after worker completes processing
   thumbnailUrl       String?
+  transcodedSdUrl    String?
   transcoded720pUrl  String?
   transcoded1080pUrl String?
   status             AssetStatus @default(PENDING_UPLOAD)

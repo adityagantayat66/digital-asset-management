@@ -4,6 +4,8 @@ import { env } from './config/env';
 import authRoutes from './routes/authRoutes';
 import assetRoutes from './routes/assetRoutes';
 import { connectRabbitMQ } from './services/rabbitmq';
+import { authenticate, requireAdmin } from './middleware/authMiddleware';
+import adminRoutes from './routes/adminRoutes';
 
 const app = express();
 
@@ -21,7 +23,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 // 4. API Route Handlers
 app.use('/api/auth', authRoutes);
-app.use('/api/assets', assetRoutes);
+app.use('/api/assets', authenticate, assetRoutes);
+app.use('/api/admin', authenticate, requireAdmin, adminRoutes);
 
 // 5. System Healthcheck Endpoint
 app.get('/api/health', (_req: Request, res: Response) => {

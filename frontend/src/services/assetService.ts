@@ -1,0 +1,125 @@
+import { api } from './api';
+import type { Asset, AssetsListResponse, PresignedUrlResponse, SSEProgressPayload } from '../types';
+
+export interface ListAssetsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: string;
+  tag?: string;
+}
+
+export const assetService = {
+  /**
+   * Fetch paginated & filtered list of assets (Redis RAM cached on backend)
+   */
+  async listAssets(params: ListAssetsParams = {}): Promise<AssetsListResponse> {
+    const res = await api.get<AssetsListResponse>('/assets', { params });
+    return res.data;
+  },
+
+  /**
+   * Fetch single asset metadata by ID
+   */
+  async getAssetById(id: string): Promise<Asset> {
+    const res = await api.get<Asset>(`/assets/${id}`);
+    return res.data;
+  },
+
+  /**
+   * Step 1: Request presigned S3 PUT URL for uploading raw file directly to MinIO
+   */
+  async requestPresignedUrl(filename: string, mimeType: string, size: number, tags: string[]): Promise<PresignedUrlResponse> {
+    const res = await api.post<PresignedUrlResponse>('/assets/presigned-url', {
+      filename,
+      mimeType,
+      size,
+      tags,
+    });
+    return res.data;
+  },
+
+  /**
+   * Step 2: Directly upload raw file bytes to MinIO S3 Presigned URL
+   */
+  async uploadToMinIO(uploadUrl: string, file: File, onProgress?: (percent: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type);
+
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            onProgress(percent);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`MinIO upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during MinIO upload'));
+      xhr.send(file);
+    });
+  },
+
+  /**
+   * Step 3: Confirm upload completion and publish job to RabbitMQ queue
+   */
+  async completeUpload(assetId: string): Promise<{ message: string; status: string }> {
+    const res = await api.post<{ message: string; status: string }>('/assets/complete-upload', { assetId });
+    return res.data;
+  },
+
+  /**
+   * Step 4: Subscribe to Server-Sent Events (SSE) progress stream for real-time transcode status
+   */
+  connectSSEProgress(assetId: string, onEvent: (payload: SSEProgressPayload) => void): () => void {
+    const token = localStorage.getItem('dam_token') || '';
+    const url = `/api/assets/${assetId}/progress/stream?token=${encodeURIComponent(token)}`;
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const payload: SSEProgressPayload = JSON.parse(event.data);
+        onEvent(payload);
+        if (payload.status === 'COMPLETED' || payload.status === 'FAILED') {
+          eventSource.close();
+        }
+      } catch (err) {
+        console.error('Failed to parse SSE progress payload:', err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Progress stream error:', err);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  },
+
+  /**
+   * Request S3 presigned GET URL and trigger browser download
+   */
+  async downloadAsset(asset: Asset): Promise<void> {
+    const res = await api.get<{ downloadUrl: string }>(`/assets/${asset.id}/download`);
+    const downloadUrl = res.data.downloadUrl;
+
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = asset.originalName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+};

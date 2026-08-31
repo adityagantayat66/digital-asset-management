@@ -1,6 +1,19 @@
 import Redis from 'ioredis';
 import { env } from '../config/env';
 
+export const redisClient = new Redis({
+    host: env.REDIS_HOST,
+    port: env.REDIS_PORT,
+    maxRetriesPerRequest: 3,
+});
+redisClient.on('connect', () => {
+    console.log('✅ Connected to Redis Store');
+});
+
+redisClient.on('error', (err) => {
+    console.error('❌ Redis Connection Error:', err);
+});
+
 export const redisPublisher = new Redis({
     host: env.REDIS_HOST,
     port: env.REDIS_PORT,

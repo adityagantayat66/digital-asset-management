@@ -1,0 +1,75 @@
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'USER' | 'ADMIN';
+  createdAt?: string;
+}
+
+export interface AuthResponse {
+  message?: string;
+  token: string;
+  user: User;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+}
+
+export interface Asset {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  rawPath: string;
+  thumbnailUrl: string | null;
+  transcodedSdUrl: string | null;
+  transcoded720pUrl: string | null;
+  transcoded1080pUrl: string | null;
+  status: 'PENDING_UPLOAD' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  errorMessage?: string | null;
+  downloadCount: number;
+  createdAt: string;
+  updatedAt: string;
+  uploaderId: string;
+  tags: string[];
+  uploader?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export interface PresignedUrlResponse {
+  id: string;
+  uploadUrl: string;
+  rawPath: string;
+}
+
+export interface SSEProgressPayload {
+  type?: 'CONNECTED';
+  assetId: string;
+  progress?: number;
+  status?: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  stage?: string;
+  error?: string;
+  updatedAt?: string;
+}
+
+export interface AssetsListResponse {
+  assets: Asset[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+export interface AdminMetricsData {
+  totalStorageBytes: number;
+  totalAssets: number;
+  totalDownloads: number;
+  activeWorkers: number;
+}
