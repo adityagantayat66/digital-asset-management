@@ -27,7 +27,19 @@ async function startWorker() {
         }, 5000);
 
         console.log('🚀 DAM Worker Service Initializing...');
-        const connection = await amqp.connect(env.RABBITMQ_URL!);
+        const connection = await amqp.connect(env.RABBITMQ_URL!, { heartbeat: 60 });
+        
+        connection.on('error', (err) => {
+            console.error('❌ RabbitMQ Connection Error:', err.message);
+        });
+        
+        connection.on('close', () => {
+            console.warn('⚠️ RabbitMQ connection closed. Attempting reconnect in 5 seconds...');
+            setTimeout(() => {
+                startWorker().catch((err) => console.error('❌ Reconnect failed:', err));
+            }, 5000);
+        });
+
         const channel = await connection.createChannel();
         await channel.assertExchange(DLX_ASSET_PROCESSING, 'direct', { durable: true });
         await channel.assertQueue(QUEUE_ASSET_PROCESSING, {
@@ -48,6 +60,14 @@ async function startWorker() {
                 return;
             }
             const { assetId, rawPath, originalName, mimeType } = result.data;
+            const lockKey = `lock:job:${assetId}`;
+            // 1. Attempt atomic lock claim (NX = Only set if Not Exists, EX 300 = Auto-expire after 5 min)
+            const acquired = await redisClient.set(lockKey, workerId, 'EX', 300, 'NX');
+            if (!acquired) {
+                console.warn(`⚠️ Job ${assetId} is already locked by another worker instance. Skipping.`);
+                channel.nack(msg, false, false); // Rejects duplicate worker execution
+                return;
+            }
             const tempDir = path.join(process.cwd(), 'temp', assetId);
             const tempFilePath = path.join(tempDir, originalName);
             try {
@@ -112,10 +132,11 @@ async function startWorker() {
             catch (error: any) {
                 console.error(`❌ Processing failed for asset ${assetId}:`, error);
                 await publishJobProgress({ assetId, progress: 0, status: 'FAILED', stage: 'FAILED', error: error.message })
-                await prisma.asset.update({ where: { id: assetId }, data: { status: 'FAILED' } });
+                await prisma.asset.update({ where: { id: assetId }, data: { status: 'FAILED', errorMessage: error.message || 'Unknown processing error', } });
                 channel.nack(msg, false, false);
             }
             finally {
+                await redisClient.del(lockKey);
                 if (fs.existsSync(tempDir)) {
                     try {
                         await fs.promises.rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

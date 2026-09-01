@@ -1,46 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ShieldCheck, RefreshCw, Server, Activity, LogOut } from 'lucide-react';
 import { AdminMetricsGrid } from '../components/admin/AdminMetricsGrid';
-import type { AdminMetricsData } from '../types';
-import { api } from '../services/api';
+import { WorkerHealthCard } from '../components/admin/WorkerHealthCard';
+import { TopAssetCards } from '../components/admin/TopAssetCards';
+import { FailedAssetsTable } from '../components/admin/FailedAssetsTable';
 import { useAuth } from '../context/AuthContext';
-import { getAdminDashboardData } from '../services/adminService';
 
-export interface AdminDashboardUIProps {
-  metrics?: AdminMetricsData;
-  isLoading?: boolean;
-}
-
-// Default mock metrics for standalone UI preview
-const MOCK_METRICS: AdminMetricsData = {
-  totalStorageBytes: 45957120000, // ~42.8 GB
-  totalAssets: 1284,
-  totalDownloads: 18420,
-  activeWorkers: 3,
-};
-
-/**
- * Presentational Page Component: Enterprise DAM Admin Dashboard.
- * 100% Stateless - Pure UI layout receiving props with default mock data fallback.
- */
 export const AdminDashboardPage: React.FC = () => {
   const { logout } = useAuth();
-  const [metrics, setMetrics] = useState<AdminMetricsData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const loadDashboardData = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getAdminDashboardData();
-      setMetrics(data);
-    } catch (error) {
-      console.error('Failed to fetch admin dashboard data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-  useEffect(() => {
-    loadDashboardData();
-  }, [])
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-500/30">
       {/* Admin Top Navigation Header */}
@@ -74,7 +43,6 @@ export const AdminDashboardPage: React.FC = () => {
               type="button"
               disabled={isLoading}
               className="py-2 px-3.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-slate-300 hover:text-white font-medium text-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
-              onClick={loadDashboardData}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-purple-400' : ''}`} />
               <span>Refresh</span>
@@ -105,28 +73,22 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
 
           {/* Embedded Component 1: Admin Metrics Grid */}
-          <AdminMetricsGrid metrics={metrics} isLoading={isLoading} />
+          <AdminMetricsGrid isLoading={isLoading} />
         </section>
 
-        {/* Section 2 Placeholder: Worker Microservice Health & Queue Monitor */}
-        <section className="glass-panel p-6 rounded-2xl border border-dashed border-white/10 text-center bg-slate-900/40">
-          <p className="text-xs text-slate-500 font-mono">
-            [ Component 2: WorkerHealthCard (RabbitMQ & Redis Locks) Will Be Embedded Here ]
-          </p>
+        {/* Section 2: Worker Microservice Health & Queue Monitor */}
+        <section aria-labelledby="worker-telemetry-heading">
+          <WorkerHealthCard isLoading={isLoading} />
         </section>
 
-        {/* Section 3 Placeholder: System Analytics & Leaderboards */}
-        <section className="glass-panel p-6 rounded-2xl border border-dashed border-white/10 text-center bg-slate-900/40">
-          <p className="text-xs text-slate-500 font-mono">
-            [ Component 3: AnalyticsOverview (Top Downloads & Storage Breakdown) Will Be Embedded Here ]
-          </p>
+        {/* Section 3: Top Assets (Downloads & Storage Footprint) */}
+        <section aria-labelledby="top-assets-heading">
+          <TopAssetCards />
         </section>
 
-        {/* Section 4 Placeholder: System-Wide Asset Audit Table */}
-        <section className="glass-panel p-6 rounded-2xl border border-dashed border-white/10 text-center bg-slate-900/40">
-          <p className="text-xs text-slate-500 font-mono">
-            [ Component 4: AdminAssetTable (Global User Audit Log) Will Be Embedded Here ]
-          </p>
+        {/* Section 4: System-Wide Failed Assets Audit Table */}
+        <section aria-labelledby="failed-assets-heading">
+          <FailedAssetsTable />
         </section>
       </main>
     </div>

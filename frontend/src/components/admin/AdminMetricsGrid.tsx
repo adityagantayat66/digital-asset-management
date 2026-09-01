@@ -1,18 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { HardDrive, Layers, Download, Cpu, Activity } from 'lucide-react';
 import type { AdminMetricsData } from '../../types';
 import { formatBytes } from '../../utils/_helperFunctions';
+import { getInfraMetrics } from '../../services/adminService';
 
 export interface AdminMetricsGridProps {
-  metrics: AdminMetricsData;
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
 /**
  * Pure Presentational Component: Displays 4 System KPI Metric Cards.
  * 100% Stateless - No React Hooks, API calls, or side effects.
  */
-export const AdminMetricsGrid: React.FC<AdminMetricsGridProps> = ({ metrics, isLoading }) => {
+export const AdminMetricsGrid: React.FC<AdminMetricsGridProps> = () => {
+  const [metrics, setMetrics] = useState<AdminMetricsData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function loadMetrics() {
+    try {
+      setIsLoading(true);
+      const data = await getInfraMetrics();
+      setMetrics(data);
+    } catch (error) {
+      console.error('Failed to fetch admin dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  useEffect(() => {
+    loadMetrics();
+  }, [])
+
   const cardItems = [
     {
       title: 'Total System Storage',

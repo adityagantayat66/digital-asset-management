@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env';
 
@@ -60,4 +60,16 @@ export function getPublicAssetUrl(bucket: string, fileKey: string): string {
   if (fileKey.startsWith('http')) return fileKey;
   return `http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}/${bucket}/${fileKey}`;
 }
+
+/**
+ * Deletes an object from a specified MinIO S3 bucket.
+ */
+export async function deleteS3Object(bucket: string, fileKey: string): Promise<void> {
+  const command = new DeleteObjectCommand({
+    Bucket: bucket,
+    Key: fileKey,
+  });
+  await s3Client.send(command);
+}
+
 

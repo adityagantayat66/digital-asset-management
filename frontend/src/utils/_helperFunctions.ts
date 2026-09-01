@@ -1,3 +1,5 @@
+import type { AxiosResponse } from "axios";
+
 export const formatBytes = (bytes: number): string => {
     if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -5,3 +7,10 @@ export const formatBytes = (bytes: number): string => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
+export function handleAndForwardAPIResponse(response: AxiosResponse) {
+    if (response.data.success) {
+        return response.data.data;
+    } else {
+        throw new Error(response.data.message);
+    }
+}

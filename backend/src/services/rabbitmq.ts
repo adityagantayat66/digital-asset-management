@@ -14,8 +14,21 @@ export async function connectRabbitMQ(): Promise<Channel> {
   if (channel) return channel;
 
   try {
-    const conn = await amqp.connect(env.RABBITMQ_URL);
+    const conn = await amqp.connect(env.RABBITMQ_URL, { heartbeat: 60 });
     connection = conn;
+
+    conn.on('error', (err) => {
+      console.error('❌ RabbitMQ Backend Connection Error:', err.message);
+      connection = null;
+      channel = null;
+    });
+
+    conn.on('close', () => {
+      console.warn('⚠️ RabbitMQ Backend Connection Closed.');
+      connection = null;
+      channel = null;
+    });
+
     const ch = await conn.createChannel();
     channel = ch;
 

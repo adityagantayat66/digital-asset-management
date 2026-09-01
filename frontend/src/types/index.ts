@@ -73,3 +73,52 @@ export interface AdminMetricsData {
   totalDownloads: number;
   activeWorkers: number;
 }
+
+export interface WorkerNodeDetail {
+  id: string;
+  status: 'ONLINE' | 'BUSY';
+  ttlRemainingSeconds: number;
+}
+
+export interface WorkerHealthData {
+  queueDepth: {
+    pendingJobs: number;
+    activeProcessingJobs: number;
+  };
+  dlq: {
+    queueDepth: number;
+  };
+  failedAssetsCount: number;
+  workers: {
+    activeNodes: number;
+    nodes: WorkerNodeDetail[];
+  };
+  locks: {
+    activeJobLocks: number;
+  };
+}
+interface Uploader {
+  name: string,
+  email: string,
+  id: string
+}
+export interface TopAssetItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  downloadCount: number;
+  thumbnailUrl: string | null;
+  uploader: Uploader;
+}
+
+export interface FailedAssetItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  errorMessage: string;
+  createdAt: string;
+  uploader: Uploader;
+}
+

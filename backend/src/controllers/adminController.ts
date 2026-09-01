@@ -2,16 +2,205 @@ import { Request, Response } from 'express';
 import { redisClient } from '../services/redis';
 import { prisma } from '../services/prisma';
 import { AdminMetricsData } from '../utils/models';
-import { getAdminMetrics } from '../api-services/adminService';
+import { deleteFailedAssets, getAdminMetrics, getDownloadAndMemoryStats, getFailedAssetsFromDB, getQueueMetrics, purgeDlq, requeueFailedAsset, syncDlqToDb } from '../api-services/adminService';
 
-export async function getAdminDashboardData(req: Request, res: Response) {
+export async function getInfraMetrics(req: Request, res: Response) {
   try {
-    const metrics: AdminMetricsData | null = await getAdminMetrics();
+    const metrics = await getAdminMetrics();
 
     res.status(200).json({
       success: true,
       message: 'Admin dashboard data fetched successfully',
       data: metrics
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+export async function getWorkerHealthMetrics(req: Request, res: Response) {
+  try {
+    const health = await getQueueMetrics();
+    res.status(200).json({
+      success: true,
+      message: 'Worker health metrics fetched successfully',
+      data: health
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+export async function syncDlq(req: Request, res: Response) {
+  try {
+    const result = await syncDlqToDb();
+    res.status(200).json({
+      success: true,
+      message: 'DLQ synced to database successfully',
+      data: result
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+export async function purgeDeadLetters(req: Request, res: Response) {
+  try {
+    const result = await purgeDlq();
+    res.status(200).json({
+      success: true,
+      message: 'Dead letters purged successfully',
+      data: result
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+export async function getTopStats(req: Request, res: Response) {
+  try {
+    const stats = await getDownloadAndMemoryStats();
+    res.status(200).json({
+      success: true,
+      message: 'Top stats fetched successfully',
+      data: { ...stats }
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+
+export async function getFailedAssets(req: Request, res: Response) {
+  try {
+    const assets = await getFailedAssetsFromDB();
+    res.status(200).json({
+      success: true,
+      message: 'Failed assets fetched successfully',
+      data: assets
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+export async function retryFailedAssets(req: Request, res: Response) {
+  try {
+    if (!req.params.assetId) {
+      throw new Error("Asset ID is required");
+    }
+    const result = await requeueFailedAsset(req.params.assetId);
+    res.status(200).json({
+      success: true,
+      message: 'Failed asset retried successfully',
+      data: result
+    });
+  }
+  catch (err) {
+    if (err instanceof Error) {
+      res.status(500).json({
+        success: false,
+        message: err.message,
+        data: null
+      });
+    }
+    else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        data: null
+      });
+    }
+  }
+}
+export async function discardFailedAssets(req: Request, res: Response) {
+  try {
+    if (!req.params.assetId) {
+      throw new Error("Asset ID is required");
+    }
+    const result = await deleteFailedAssets(req.params.assetId);
+    res.status(200).json({
+      success: true,
+      message: 'Failed asset discarded successfully',
+      data: result
     });
   }
   catch (err) {
