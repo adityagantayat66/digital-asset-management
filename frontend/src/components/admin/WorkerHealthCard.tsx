@@ -20,28 +20,6 @@ export interface WorkerHealthCardProps {
   isLoading?: boolean;
 }
 
-// Default mock data for standalone UI preview
-const MOCK_WORKER_HEALTH: WorkerHealthData = {
-  queueDepth: {
-    pendingJobs: 3,
-    activeProcessingJobs: 1,
-  },
-  dlq: {
-    queueDepth: 2,
-  },
-  failedAssetsCount: 4,
-  workers: {
-    activeNodes: 2,
-    nodes: [
-      { id: 'worker:node-alpha:24910', status: 'BUSY', ttlRemainingSeconds: 8 },
-      { id: 'worker:node-beta:31024', status: 'ONLINE', ttlRemainingSeconds: 9 },
-    ],
-  },
-  locks: {
-    activeJobLocks: 1,
-  },
-};
-
 /**
  * Pure Presentational Component: Worker Microservice & Queue Monitor Card.
  * 100% Stateless - No React Hooks, API calls, or side effects.

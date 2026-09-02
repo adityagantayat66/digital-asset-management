@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 
 export const AdminDashboardPage: React.FC = () => {
   const { logout } = useAuth();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading] = useState<boolean>(false);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-500/30">

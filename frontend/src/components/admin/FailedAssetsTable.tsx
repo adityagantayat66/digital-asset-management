@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { AlertOctagon, RotateCcw, Trash2, ShieldAlert, FileText, User, Clock, Terminal } from 'lucide-react';
+import { AlertOctagon, RotateCcw, Trash2, ShieldAlert, User, Clock, Terminal } from 'lucide-react';
 import type { FailedAssetItem } from '../../types';
 import { formatBytes } from '../../utils/_helperFunctions';
 import { discardFailedAssets, getFailedAssets, retryFailedAssets } from '../../services/adminService';
 import toast from 'react-hot-toast';
-
 
 export const FailedAssetsTable: React.FC = () => {
   const [failedAssets, setFailedAssets] = useState<FailedAssetItem[]>([]);
@@ -94,7 +93,13 @@ export const FailedAssetsTable: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-xs text-slate-300">
-                {failedAssets.map((asset) => (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-slate-400">
+                      Loading failed assets audit telemetry...
+                    </td>
+                  </tr>
+                ) : failedAssets.map((asset) => (
                   <tr key={asset.id} className="hover:bg-white/[0.02] transition-colors group">
                     {/* Column 1: Asset File & Uploader */}
                     <td className="py-4 px-4 align-top max-w-[240px]">

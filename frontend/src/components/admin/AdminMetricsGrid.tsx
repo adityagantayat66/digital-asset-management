@@ -67,14 +67,14 @@ export const AdminMetricsGrid: React.FC<AdminMetricsGridProps> = () => {
     },
     {
       title: 'Active Workers',
-      value: `${metrics?.activeWorkers} Nodes`,
+      value: `${metrics?.activeWorkers ?? 0} Nodes`,
       subtitle: 'RabbitMQ Heartbeats',
       icon: Cpu,
       accentColor: 'from-amber-500/20 to-orange-500/20',
       iconColor: 'text-amber-400',
       borderColor: 'border-amber-500/20',
-      badge: metrics?.activeWorkers > 0 ? 'Healthy' : 'Offline',
-      badgeColor: metrics?.activeWorkers > 0
+      badge: (metrics?.activeWorkers ?? 0) > 0 ? 'Healthy' : 'Offline',
+      badgeColor: (metrics?.activeWorkers ?? 0) > 0
         ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
         : 'bg-red-500/10 text-red-300 border-red-500/30',
     },
