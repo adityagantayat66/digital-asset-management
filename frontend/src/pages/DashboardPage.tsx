@@ -5,11 +5,12 @@ import type { Asset } from '../types';
 import { AssetCard } from '../components/AssetCard';
 import { UploadModal } from '../components/UploadModal';
 import { AssetDetailModal } from '../components/AssetDetailModal';
-import { Search, Upload, LogOut, User as UserIcon, Database, Film, Image as ImageIcon, FileText, Layers, RefreshCw, FolderOpen } from 'lucide-react';
+import { Search, Upload, LogOut, User as UserIcon, Database, Film, Image as ImageIcon, FileText, Layers, RefreshCw, FolderOpen, Layers2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
-
+  const navigate = useNavigate();
   // State Management
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -80,6 +81,10 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  function navigateToAdminConsole(): void {
+    navigate('/adminDashboard');
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       {/* Top Header Navigation */}
@@ -121,6 +126,18 @@ export const DashboardPage: React.FC = () => {
             </button>
 
             {/* User Badge */}
+            {user?.role && user.role === 'ADMIN' && (
+              <button
+                onClick={navigateToAdminConsole}
+                className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/10 shrink-0 cursor-pointer"
+              >
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Layers2 className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-semibold text-white hidden lg:inline">Admin Console</span>
+              </button>
+            )}
+
             <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-white/10 shrink-0">
               <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
                 <UserIcon className="w-4 h-4" />
@@ -148,8 +165,8 @@ export const DashboardPage: React.FC = () => {
             <button
               onClick={() => { setSelectedType('ALL'); setPage(1); }}
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${selectedType === 'ALL'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
                 }`}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -159,8 +176,8 @@ export const DashboardPage: React.FC = () => {
             <button
               onClick={() => { setSelectedType('video'); setPage(1); }}
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${selectedType === 'video'
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
+                : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
                 }`}
             >
               <Film className="w-3.5 h-3.5" />
@@ -170,8 +187,8 @@ export const DashboardPage: React.FC = () => {
             <button
               onClick={() => { setSelectedType('image'); setPage(1); }}
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${selectedType === 'image'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
                 }`}
             >
               <ImageIcon className="w-3.5 h-3.5" />
@@ -181,8 +198,8 @@ export const DashboardPage: React.FC = () => {
             <button
               onClick={() => { setSelectedType('document'); setPage(1); }}
               className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${selectedType === 'document'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'bg-slate-900/60 text-slate-400 hover:text-white border border-white/5'
                 }`}
             >
               <FileText className="w-3.5 h-3.5" />

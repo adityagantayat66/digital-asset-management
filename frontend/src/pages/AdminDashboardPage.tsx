@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { ShieldCheck, RefreshCw, Server, Activity, LogOut } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Server, Activity, LogOut, Images } from 'lucide-react';
 import { AdminMetricsGrid } from '../components/admin/AdminMetricsGrid';
 import { WorkerHealthCard } from '../components/admin/WorkerHealthCard';
 import { TopAssetCards } from '../components/admin/TopAssetCards';
 import { FailedAssetsTable } from '../components/admin/FailedAssetsTable';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export const AdminDashboardPage: React.FC = () => {
   const { logout } = useAuth();
   const [isLoading] = useState<boolean>(false);
+  const navigate = useNavigate();
+
+  function navigateToGallery(): void {
+    navigate('/dashboard');
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-purple-500/30">
@@ -38,7 +44,14 @@ export const AdminDashboardPage: React.FC = () => {
               <Activity className="w-3.5 h-3.5 text-emerald-400" />
               <span>System Health: <strong className="text-emerald-400 font-semibold">Optimal</strong></span>
             </div>
-
+            <button
+              type="button"
+              onClick={navigateToGallery}
+              className="py-2 px-3.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-slate-300 hover:text-white font-medium text-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+            >
+              <Images className="w-3.5 h-3.5" />
+              <span>View Gallery</span>
+            </button>
             <button
               type="button"
               disabled={isLoading}

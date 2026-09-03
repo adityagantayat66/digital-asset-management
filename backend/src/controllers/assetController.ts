@@ -234,6 +234,7 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
     const tag = (req.query.tag as string) || '';
 
     const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const cacheKey = `cache:gallery:u:${userId || 'all'}:p${page}:l${limit}:s${search}:t${type}:tg${tag}`;
 
     // 1. Check Redis Cache
@@ -245,7 +246,7 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
 
     // 2. Build Prisma Where Clause
     const where: any = {};
-    if (userId) {
+    if (userId && userRole !== 'ADMIN') {
       where.uploaderId = userId;
     }
     if (search) {
