@@ -166,3 +166,6 @@ volumes:
   rabbitmq_data:
   minio_data:
   frontend_dist:
+
+    #docker compose build
+    #docker stack deploy -c docker-compose.yml --resolve-image=never dam
