@@ -26,13 +26,14 @@ export async function getAdminMetrics(): Promise<AdminMetricsData | null> {
 }
 export async function getQueueMetrics() {
     const channel = await connectRabbitMQ()
-    const [queueInfo, dlqInfo, activeProcessingJobs, distributedJobLocks, workerHeartbeatKeys, failedAssetsCount] = await Promise.all([
+    const [queueInfo, dlqInfo, activeProcessingJobs, distributedJobLocks, workerHeartbeatKeys, failedAssetsCount, rawCronLog] = await Promise.all([
         channel.checkQueue(QUEUE_ASSET_PROCESSING),
         channel.checkQueue(`${QUEUE_ASSET_PROCESSING}_dead_letters`),
         prisma.asset.count({ where: { status: 'PROCESSING' } }),
         redisClient.keys('lock:job:*'),
         redisClient.keys('worker:heartbeat:*'),
-        prisma.asset.count({ where: { status: 'FAILED' } })
+        prisma.asset.count({ where: { status: 'FAILED' } }),
+        redisClient.get('cron:last_executed')
     ]);
     const nodes = await Promise.all(
         workerHeartbeatKeys.map(async (key) => ({
@@ -41,6 +42,14 @@ export async function getQueueMetrics() {
             ttlRemainingSeconds: await redisClient.ttl(key)
         }))
     );
+    let lastCronJob = null;
+    if (rawCronLog) {
+        try {
+            lastCronJob = JSON.parse(rawCronLog);
+        } catch {
+            lastCronJob = null;
+        }
+    }
     return {
         queueDepth: {
             pendingJobs: queueInfo.messageCount,
@@ -57,6 +66,7 @@ export async function getQueueMetrics() {
         locks: {
             activeJobLocks: distributedJobLocks.length,
         },
+        lastCronJob,
     };
 }
 // backend/src/api-services/adminService.ts

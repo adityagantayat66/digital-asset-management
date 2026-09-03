@@ -45,9 +45,16 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-// 7. Start HTTP Server and initialize RabbitMQ topology
+import { ensureMinioBucketsExist } from './services/minio';
+
+// 7. Start HTTP Server and initialize RabbitMQ topology & MinIO buckets
 async function startServer() {
   try {
+    // Ensure MinIO raw and processed buckets exist with public-read policy for thumbnails
+    await ensureMinioBucketsExist().catch((err) => {
+      console.warn('⚠️ MinIO bucket policy setup warning:', err.message);
+    });
+
     // Attempt RabbitMQ queue assertion on startup
     await connectRabbitMQ().catch((err) => {
       console.warn('⚠️ RabbitMQ initial connection delayed:', err.message);

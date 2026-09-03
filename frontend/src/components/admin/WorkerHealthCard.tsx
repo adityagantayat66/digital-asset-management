@@ -10,6 +10,7 @@ import {
   Server,
   CheckCircle2,
   Radio,
+  Clock,
 } from 'lucide-react';
 import type { WorkerHealthData } from '../../types';
 import { api } from '../../services/api';
@@ -291,6 +292,41 @@ export const WorkerHealthCard: React.FC<WorkerHealthCardProps> = () => {
           )}
         </div>
       )}
+
+      {/* 24-Hour Stale Upload Garbage Collection Telemetry Panel */}
+      <div className="p-4 rounded-xl bg-slate-950/50 border border-white/10 space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 shrink-0">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h4 className="text-xs font-bold text-slate-200 tracking-tight">
+                  Automated 24-Hour Stale Upload Cleanup
+                </h4>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-teal-500/10 text-teal-300 border border-teal-500/30">
+                  00:00
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                {metrics?.lastCronJob
+                  ? metrics.lastCronJob.message
+                  : 'Scheduled daily at 00:00. Redis lock protection active.'}
+              </p>
+            </div>
+          </div>
+
+          {metrics?.lastCronJob?.timestamp && (
+            <div className="text-left sm:text-right text-[10px] text-slate-400 shrink-0 border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
+              <p>Last Executed: <strong className="text-teal-300 font-semibold">{new Date(metrics.lastCronJob.timestamp).toLocaleString()}</strong></p>
+              {metrics.lastCronJob.executedBy && (
+                <p className="font-mono text-slate-500 text-[9px]">{metrics.lastCronJob.executedBy}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Worker Instance Registry List */}
       <div className="space-y-3 border-t border-white/10 pt-4">

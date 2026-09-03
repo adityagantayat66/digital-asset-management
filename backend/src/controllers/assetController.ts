@@ -40,7 +40,7 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
     const { filename, mimeType, tags = [], size } = parsedResult.data;
     const fileExtension = filename.includes('.') ? filename.substring(filename.lastIndexOf('.')) : '';
     const fileKey = `${uuidv4()}${fileExtension}`;
-    const { uploadUrl, rawPath } = await generatePresignedUploadUrl(fileKey, fileExtension);
+    const { uploadUrl, rawPath } = await generatePresignedUploadUrl(fileKey, mimeType);
     const asset = await prisma.asset.create({
       data: {
         originalName: filename,

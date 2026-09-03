@@ -80,6 +80,13 @@ export interface WorkerNodeDetail {
   ttlRemainingSeconds: number;
 }
 
+export interface LastCronJobDetail {
+  timestamp: string;
+  deletedCount: number;
+  message: string;
+  executedBy?: string;
+}
+
 export interface WorkerHealthData {
   queueDepth: {
     pendingJobs: number;
@@ -96,6 +103,7 @@ export interface WorkerHealthData {
   locks: {
     activeJobLocks: number;
   };
+  lastCronJob?: LastCronJobDetail | null;
 }
 interface Uploader {
   name: string,

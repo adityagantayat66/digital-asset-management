@@ -9,6 +9,7 @@ import { downloadRawAssets, uploadProcessedAsset } from './services/minio';
 import { prisma } from './services/prisma';
 import { generateImageThumbnail } from './background-jobs/imageProcessor';
 import { processVideo } from './background-jobs/videoProcessor';
+import { initCronJobs } from './services/cronService';
 
 const QUEUE_ASSET_PROCESSING = 'asset_processing';
 const DLX_ASSET_PROCESSING = 'asset_processing_dlx';
@@ -26,13 +27,16 @@ async function startWorker() {
             await redisClient.set(`worker:heartbeat:${workerId}`, 'ONLINE', 'EX', 10);
         }, 5000);
 
+        // Initialize scheduled 24-hour cron jobs (with Redis locking for worker scaling)
+        initCronJobs();
+
         console.log('🚀 DAM Worker Service Initializing...');
         const connection = await amqp.connect(env.RABBITMQ_URL!, { heartbeat: 60 });
-        
+
         connection.on('error', (err) => {
             console.error('❌ RabbitMQ Connection Error:', err.message);
         });
-        
+
         connection.on('close', () => {
             console.warn('⚠️ RabbitMQ connection closed. Attempting reconnect in 5 seconds...');
             setTimeout(() => {
@@ -83,6 +87,7 @@ async function startWorker() {
                         throw new Error('❌ Could not generate thumbnail');
                     }
                     const thumbnailUrl = await uploadProcessedAsset(`thumbnails/${assetId}.jpg`, thumbnailPath);
+                    console.log(thumbnailUrl)
                     await publishJobProgress({ ...progressMsg, status: 'COMPLETED', progress: 100 });
                     await prisma.asset.update({ where: { id: assetId }, data: { status: 'COMPLETED', thumbnailUrl } })
                 }

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Film, Image as ImageIcon, FileText, Download, Play, HardDrive, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Film, Image as ImageIcon, FileText, Download, Play, HardDrive, CheckCircle2, Clock, AlertTriangle, Eye } from 'lucide-react';
 import type { Asset } from '../types';
+import { formatBytes } from '../utils/_helperFunctions';
 
 interface AssetCardProps {
   asset: Asset;
@@ -11,14 +12,6 @@ interface AssetCardProps {
 export const AssetCard: React.FC<AssetCardProps> = ({ asset, onSelect, onDownload }) => {
   const isVideo = asset.mimeType.startsWith('video/');
   const isImage = asset.mimeType.startsWith('image/');
-
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
 
   const getStatusBadge = () => {
     switch (asset.status) {
@@ -82,7 +75,9 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onSelect, onDownloa
         {/* Hover Overlay Button */}
         <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-            <Play className="w-5 h-5 fill-current ml-0.5" />
+            {isVideo
+              ? <Play className="w-5 h-5 fill-current ml-0.5" />
+              : <Eye className='w-5 h-5 ml-0.5' />}
           </div>
         </div>
 
@@ -91,23 +86,31 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onSelect, onDownloa
           {getStatusBadge()}
 
           {/* Video Resolution Badges */}
-          <div className="flex space-x-1">
-            {asset.transcoded1080pUrl && (
-              <span className="px-1.5 py-0.5 rounded bg-purple-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
-                1080p
+          {isVideo ? (
+            <div className="flex space-x-1">
+              {asset.transcoded1080pUrl && (
+                <span className="px-1.5 py-0.5 rounded bg-purple-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
+                  1080p
+                </span>
+              )}
+              {asset.transcoded720pUrl && (
+                <span className="px-1.5 py-0.5 rounded bg-indigo-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
+                  720p
+                </span>
+              )}
+              {asset.transcodedSdUrl && (
+                <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
+                  SD
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="flex space-x-1">
+              <span className="px-1.5 py-0.5 rounded bg-orange-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
+                Image
               </span>
-            )}
-            {asset.transcoded720pUrl && (
-              <span className="px-1.5 py-0.5 rounded bg-indigo-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
-                720p
-              </span>
-            )}
-            {asset.transcodedSdUrl && (
-              <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
-                SD
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

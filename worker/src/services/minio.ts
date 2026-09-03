@@ -1,5 +1,5 @@
-import * as Minio from 'minio'
-import { env } from '../config/env'
+import * as Minio from 'minio';
+import { env } from '../config/env';
 import path from 'path';
 import fs from 'fs';
 
@@ -10,7 +10,7 @@ const minioClient = new Minio.Client({
     accessKey: env.MINIO_ROOT_USER,
     secretKey: env.MINIO_ROOT_PASSWORD,
     useSSL: false,
-})
+});
 
 export async function assertBucketExists(bucketName: string) {
     const exists = await minioClient.bucketExists(bucketName);
@@ -48,8 +48,21 @@ export async function uploadProcessedAsset(fileKey: string, filePath: string, co
     try {
         await minioClient.fPutObject(env.MINIO_PROCESSED_BUCKET, fileKey, filePath, { 'Content-Type': contentType });
         console.log(`Uploaded processed asset ${fileKey} from ${filePath}`);
-        return `http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}/${env.MINIO_PROCESSED_BUCKET}/${fileKey}`
+        return fileKey;
     } catch (error) {
         throw new Error(`Failed to upload processed asset to MinIO: ${error}`);
+    }
+}
+
+export async function deleteRawAsset(rawPath: string): Promise<void> {
+    if (!rawPath) return;
+    const objectKey = rawPath.startsWith(`${env.MINIO_RAW_BUCKET}/`)
+        ? rawPath.replace(`${env.MINIO_RAW_BUCKET}/`, '')
+        : rawPath;
+    try {
+        await minioClient.removeObject(env.MINIO_RAW_BUCKET, objectKey);
+        console.log(`Deleted raw asset object "${objectKey}" from MinIO bucket "${env.MINIO_RAW_BUCKET}"`);
+    } catch (error) {
+        console.warn(`Notice: Could not remove object "${objectKey}" from MinIO:`, error);
     }
 }
