@@ -306,7 +306,7 @@ export const WorkerHealthCard: React.FC<WorkerHealthCardProps> = () => {
                   Automated 24-Hour Stale Upload Cleanup
                 </h4>
                 <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-teal-500/10 text-teal-300 border border-teal-500/30">
-                  00:00
+                  Scheduled at 00:00 daily
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
