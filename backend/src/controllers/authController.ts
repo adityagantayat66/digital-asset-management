@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { prisma } from '../services/prisma';
-import { env } from '../config/env';
+import { registerUser, loginUser, getUserProfile } from '../api-services/authService';
+import { HttpStatus } from '../utils/httpStatus';
 
 // Validation Schemas using Zod
 const registerSchema = z.object({
@@ -25,52 +23,24 @@ export async function register(req: Request, res: Response): Promise<void> {
   try {
     const parseResult = registerSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(400).json({ error: 'Validation Error', details: parseResult.error.format() });
+      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Validation Error', details: parseResult.error.format() });
       return;
     }
 
-    const { email, password, name } = parseResult.data;
+    const result = await registerUser(parseResult.data);
 
-    // 1. Check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      res.status(409).json({ error: 'User with this email already exists' });
-      return;
-    }
-
-    // 2. Hash password with bcrypt
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // 3. Create user in PostgreSQL
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        name,
-        role: 'USER',
-      },
-    });
-
-    // 4. Generate JWT Token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
-    );
-
-    res.status(201).json({
+    res.status(HttpStatus.CREATED).json({
       message: 'User registered successfully',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      token: result.token,
+      user: result.user,
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.statusCode) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
     console.error('❌ Register Error:', error);
-    res.status(500).json({ error: 'Internal Server Error during registration' });
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error during registration' });
   }
 }
 
@@ -82,46 +52,24 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(400).json({ error: 'Validation Error', details: parseResult.error.format() });
+      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Validation Error', details: parseResult.error.format() });
       return;
     }
 
-    const { email, password } = parseResult.data;
+    const result = await loginUser(parseResult.data);
 
-    // 1. Find user by email
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      res.status(401).json({ error: 'Invalid email or password' });
-      return;
-    }
-
-    // 2. Verify password hash
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      res.status(401).json({ error: 'Invalid email or password' });
-      return;
-    }
-
-    // 3. Generate JWT Token
-    const token = jwt.sign(
-      { userId: user.id, email: user.email, role: user.role },
-      env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
-    );
-
-    res.status(200).json({
+    res.status(HttpStatus.OK).json({
       message: 'Login successful',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      token: result.token,
+      user: result.user,
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.statusCode) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
     console.error('❌ Login Error:', error);
-    res.status(500).json({ error: 'Internal Server Error during login' });
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error during login' });
   }
 }
 
@@ -132,29 +80,19 @@ export async function login(req: Request, res: Response): Promise<void> {
 export async function getProfile(req: Request, res: Response): Promise<void> {
   try {
     if (!req.user) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized' });
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    const user = await getUserProfile(req.user.userId);
 
-    if (!user) {
-      res.status(404).json({ error: 'User profile not found' });
+    res.status(HttpStatus.OK).json({ user });
+  } catch (error: any) {
+    if (error.statusCode) {
+      res.status(error.statusCode).json({ error: error.message });
       return;
     }
-
-    res.status(200).json({ user });
-  } catch (error) {
     console.error('❌ Get Profile Error:', error);
-    res.status(500).json({ error: 'Internal Server Error fetching user profile' });
+    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error fetching user profile' });
   }
 }

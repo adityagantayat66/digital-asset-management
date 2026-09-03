@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { Role } from '@prisma/client';
+import { HttpStatus } from '../utils/httpStatus';
 
 export interface JwtPayload {
   userId: string;
@@ -33,7 +34,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 
   if (!token) {
-    res.status(401).json({ error: 'Unauthorized: Missing or invalid authentication token' });
+    res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized: Missing or invalid authentication token' });
     return;
   }
 
@@ -42,7 +43,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Unauthorized: Invalid or expired access token' });
+    res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized: Invalid or expired access token' });
     return;
   }
 }
@@ -52,7 +53,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user || req.user.role !== 'ADMIN') {
-    res.status(403).json({ error: 'Forbidden: Admin privilege required' });
+    res.status(HttpStatus.FORBIDDEN).json({ error: 'Forbidden: Admin privilege required' });
     return;
   }
   next();

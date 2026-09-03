@@ -6,6 +6,7 @@ import assetRoutes from './routes/assetRoutes';
 import { connectRabbitMQ } from './services/rabbitmq';
 import { authenticate, requireAdmin } from './middleware/authMiddleware';
 import adminRoutes from './routes/adminRoutes';
+import { HttpStatus } from './utils/httpStatus';
 
 const app = express();
 
@@ -28,7 +29,7 @@ app.use('/api/admin', authenticate, requireAdmin, adminRoutes);
 
 // 5. System Healthcheck Endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.status(200).json({
+  res.status(HttpStatus.OK).json({
     status: 'UP',
     timestamp: new Date().toISOString(),
     environment: env.NODE_ENV,
@@ -39,7 +40,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // 6. Global Error Handling Middleware
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('❌ Global API Error:', err);
-  res.status(500).json({
+  res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
     error: 'Internal Server Error',
     message: env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
   });
