@@ -6,7 +6,11 @@ import { TopAssetCardItem } from './TopAssetCardItem';
 import { getDownloadAndMemoryStats } from '../../services/adminService';
 
 
-export const TopAssetCards: React.FC = () => {
+export interface TopAssetCardsProps {
+  refreshKey?: number;
+}
+
+export const TopAssetCards: React.FC<TopAssetCardsProps> = ({ refreshKey }) => {
   const [topStats, setTopStats] = useState<{
     downloadStats: TopAssetItem[];
     storageStats: TopAssetItem[];
@@ -31,7 +35,7 @@ export const TopAssetCards: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [refreshKey]);
   return (
     <div className="space-y-8">
       {/* Subsection 1: Top 3 Downloaded Assets */}

@@ -10,10 +10,15 @@ import { useNavigate } from 'react-router-dom';
 export const AdminDashboardPage: React.FC = () => {
   const { logout } = useAuth();
   const [isLoading] = useState<boolean>(false);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
   const navigate = useNavigate();
 
   function navigateToGallery(): void {
     navigate('/dashboard');
+  }
+
+  function handleRefresh(): void {
+    setRefreshKey((prev) => prev + 1);
   }
 
   return (
@@ -55,6 +60,7 @@ export const AdminDashboardPage: React.FC = () => {
             <button
               type="button"
               disabled={isLoading}
+              onClick={handleRefresh}
               className="py-2 px-3.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-slate-300 hover:text-white font-medium text-xs transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-purple-400' : ''}`} />
@@ -86,22 +92,22 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
 
           {/* Embedded Component 1: Admin Metrics Grid */}
-          <AdminMetricsGrid isLoading={isLoading} />
+          <AdminMetricsGrid refreshKey={refreshKey} isLoading={isLoading} />
         </section>
 
         {/* Section 2: Worker Microservice Health & Queue Monitor */}
         <section aria-labelledby="worker-telemetry-heading">
-          <WorkerHealthCard isLoading={isLoading} />
+          <WorkerHealthCard refreshKey={refreshKey} isLoading={isLoading} />
         </section>
 
         {/* Section 3: Top Assets (Downloads & Storage Footprint) */}
         <section aria-labelledby="top-assets-heading">
-          <TopAssetCards />
+          <TopAssetCards refreshKey={refreshKey} />
         </section>
 
         {/* Section 4: System-Wide Failed Assets Audit Table */}
         <section aria-labelledby="failed-assets-heading">
-          <FailedAssetsTable />
+          <FailedAssetsTable onActionSuccess={handleRefresh} />
         </section>
       </main>
     </div>

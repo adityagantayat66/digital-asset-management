@@ -6,13 +6,14 @@ import { getInfraMetrics } from '../../services/adminService';
 
 export interface AdminMetricsGridProps {
   isLoading?: boolean;
+  refreshKey?: number;
 }
 
 /**
  * Pure Presentational Component: Displays 4 System KPI Metric Cards.
  * 100% Stateless - No React Hooks, API calls, or side effects.
  */
-export const AdminMetricsGrid: React.FC<AdminMetricsGridProps> = () => {
+export const AdminMetricsGrid: React.FC<AdminMetricsGridProps> = ({ refreshKey }) => {
   const [metrics, setMetrics] = useState<AdminMetricsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,7 +30,7 @@ export const AdminMetricsGrid: React.FC<AdminMetricsGridProps> = () => {
   }
   useEffect(() => {
     loadMetrics();
-  }, [])
+  }, [refreshKey]);
 
   const cardItems = [
     {

@@ -5,7 +5,11 @@ import { formatBytes } from '../../utils/_helperFunctions';
 import { discardFailedAssets, getFailedAssets, retryFailedAssets } from '../../services/adminService';
 import toast from 'react-hot-toast';
 
-export const FailedAssetsTable: React.FC = () => {
+export interface FailedAssetsTableProps {
+  onActionSuccess?: () => void;
+}
+
+export const FailedAssetsTable: React.FC<FailedAssetsTableProps> = ({ onActionSuccess }) => {
   const [failedAssets, setFailedAssets] = useState<FailedAssetItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const fetchData = async () => {
@@ -30,6 +34,7 @@ export const FailedAssetsTable: React.FC = () => {
       if (res?.success) {
         toast.success('Asset re-queued successfully');
         fetchData();
+        onActionSuccess?.();
       }
     } catch (err) {
       toast.error('Failed to re-queue asset');
@@ -44,6 +49,7 @@ export const FailedAssetsTable: React.FC = () => {
       if (res?.success) {
         toast.success('Asset discarded successfully');
         fetchData();
+        onActionSuccess?.();
       }
     } catch (err) {
       toast.error('Failed to discard asset');

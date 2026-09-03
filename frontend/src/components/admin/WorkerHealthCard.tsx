@@ -19,13 +19,14 @@ import { getWorkerHealthMetrics } from '../../services/adminService';
 export interface WorkerHealthCardProps {
   data?: WorkerHealthData;
   isLoading?: boolean;
+  refreshKey?: number;
 }
 
 /**
  * Pure Presentational Component: Worker Microservice & Queue Monitor Card.
  * 100% Stateless - No React Hooks, API calls, or side effects.
  */
-export const WorkerHealthCard: React.FC<WorkerHealthCardProps> = () => {
+export const WorkerHealthCard: React.FC<WorkerHealthCardProps> = ({ refreshKey }) => {
   const [metrics, setMetrics] = useState<WorkerHealthData | null>(null);
   const activeNodes = metrics?.workers?.activeNodes ?? 0;
   const pendingJobs = metrics?.queueDepth?.pendingJobs ?? 0;
@@ -50,7 +51,7 @@ export const WorkerHealthCard: React.FC<WorkerHealthCardProps> = () => {
   }
   useEffect(() => {
     loadWorkerHealthData();
-  }, [])
+  }, [refreshKey]);
 
   const [actionFeedback, setActionFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
