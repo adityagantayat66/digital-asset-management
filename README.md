@@ -64,6 +64,7 @@ The platform operates on a high-throughput microservices architecture deployed a
   3. **Gallery Query Caching**: High-speed caching (`cache:gallery:*`, 60s TTL) with automatic cache invalidation upon task completion or deletion.
   4. **Live SSE Progress Bus**: Zero-disk Pub/Sub channel (`asset:progress:{id}`) streaming live worker percentage progress to clients.
   5. **Distributed Locks & Rate-Limiting**: Atomic `SET NX EX` locks preventing duplicate worker processing across `--scale worker=N` instances, plus sliding-window upload rate limiting.
+* **Automated Stale Upload Cleanup (Node-Cron & Redis Distributed Lock)**: Background workers execute a daily scheduled cron task (`node-cron`, `0 0 * * *`) that purges abandoned `PENDING_UPLOAD` assets older than 6 hours from both MinIO `raw-assets` and PostgreSQL. Uses Redis atomic distributed locking (`SET lock:cron:stale_cleanup true NX EX 3600`) to guarantee single-worker execution across scaled container clusters, recording execution telemetry (`cron:last_executed`) for the Admin Console.
 * **2-Layer Defense-in-Depth Security**:
   * **Layer 1 (Nginx Ingress)**: Drops DDoS floods and aggressive scrapers in < 0.1ms at the network perimeter (`limit_req_zone`).
   * **Layer 2 (API Gateway)**: Enforces JWT authentication, user role permissions (`USER` vs `ADMIN`), and database upload quotas.
@@ -77,7 +78,7 @@ The platform operates on a high-throughput microservices architecture deployed a
 | **Ingress & Proxy** | Nginx | Static SPA hosting, reverse proxying, SSL termination, Layer 1 IP rate limiting. |
 | **Frontend Web App** | React 18, Vite, TypeScript, Tailwind CSS, Lucide Icons | Responsive UI, dual-stage upload progress modal, media gallery, video player, admin dashboard. |
 | **API Gateway** | Node.js, Express, TypeScript, Prisma ORM | Presigned URL generation, metadata DB management, SSE streaming, admin operational endpoints. |
-| **Worker Service** | Node.js, TypeScript, `amqplib`, FFmpeg, Sharp | Consumes RabbitMQ tasks, resizes images, transcodes videos, updates SSE progress via Redis. |
+| **Worker Service** | Node.js, TypeScript, `amqplib`, FFmpeg, Sharp, `node-cron` | Consumes RabbitMQ tasks, resizes images, transcodes videos, streams SSE progress via Redis, runs scheduled stale upload cleanup. |
 | **Object Storage** | MinIO (S3 Compatible) | Hosts `raw-assets` (master files) and `processed-assets` (thumbnails & video streams). |
 | **Message Broker** | RabbitMQ (AMQP) | Reliable task queuing with Dead Letter Exchange (`DLX`) and Dead Letter Queue (`DLQ`). |
 | **In-Memory Store** | Redis 7 | Caching layer, real-time SSE Pub/Sub bus, download leaderboards, distributed job locks. |
