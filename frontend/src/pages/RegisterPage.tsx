@@ -24,7 +24,11 @@ export const RegisterPage: React.FC = () => {
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
       console.error('Registration failed:', err);
-      const apiError = err.response?.data?.error || err.response?.data?.message || 'Registration failed. Please try again.';
+      const rawError = err.response?.data?.error;
+      const apiError =
+        typeof rawError === 'string'
+          ? rawError
+          : rawError?.message || err.response?.data?.message || err.message || 'Registration failed. Please try again.';
       setError(apiError);
     } finally {
       setIsSubmitting(false);

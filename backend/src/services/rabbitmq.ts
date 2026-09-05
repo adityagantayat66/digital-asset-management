@@ -1,11 +1,14 @@
 import amqp, { Channel, ChannelModel } from 'amqplib';
 import { env } from '../config/env';
+import { ErrorLogPayload } from '../utils/models';
 
 let connection: ChannelModel | null = null;
 let channel: Channel | null = null;
 
 export const QUEUE_ASSET_PROCESSING = 'asset_processing';
 export const DLX_ASSET_PROCESSING = 'asset_processing_dlx';
+export const QUEUE_LOGGER = 'dam_system_logger';
+export const DLX_LOGGER = 'dam_system_logger_dlx';
 
 /**
  * Connects to RabbitMQ and asserts durable queue topology.
@@ -47,6 +50,20 @@ export async function connectRabbitMQ(): Promise<Channel> {
     });
 
     console.log(`✅ Connected to RabbitMQ Queue: "${QUEUE_ASSET_PROCESSING}"`);
+
+    //Asserting log queue topology
+    await ch.assertExchange(DLX_LOGGER, 'direct', { durable: true })
+    await ch.assertQueue(`${QUEUE_LOGGER}_dead_letters`, { durable: true })
+    await ch.bindQueue(`${QUEUE_LOGGER}_dead_letters`, DLX_LOGGER, 'failed')
+    await ch.assertQueue(QUEUE_LOGGER, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': DLX_LOGGER,
+        'x-dead-letter-routing-key': 'failed',
+      },
+    });
+    console.log(`✅ Connected to RabbitMQ Queue: "${QUEUE_LOGGER}"`);
+
     return ch;
   } catch (error) {
     console.error('❌ RabbitMQ Connection Error:', error);
@@ -69,4 +86,12 @@ export async function publishProcessingJob(assetPayload: {
   return ch.sendToQueue(QUEUE_ASSET_PROCESSING, messageBuffer, {
     persistent: true, // Ensure task message is saved to disk
   });
+}
+export async function publishErrorLog(logPayload: ErrorLogPayload): Promise<boolean> {
+  const ch = await connectRabbitMQ();
+  // CLARIFY: Why buffer?
+  const messageBuffer = Buffer.from(JSON.stringify(logPayload));
+  return ch.sendToQueue(QUEUE_LOGGER, messageBuffer, {
+    persistent: true,
+  })
 }

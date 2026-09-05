@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { env } from '../config/env';
+import { LoggerService } from './logger';
 
 export const redisClient = new Redis({
     host: env.REDIS_HOST,
@@ -11,6 +12,13 @@ redisClient.on('connect', () => {
 });
 
 redisClient.on('error', (err) => {
+    LoggerService.logError({
+        level: 'CRITICAL',
+        functionName: 'Worker:Redis',
+        message: typeof err === 'string' ? err : (err?.message || 'Redis Connection Error'),
+        stack: err?.stack,
+        details: {},
+    });
     console.error('❌ Redis Connection Error:', err);
 });
 

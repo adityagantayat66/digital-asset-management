@@ -20,10 +20,15 @@ export const LoginPage: React.FC = () => {
 
     try {
       const loggedInUser = await login(email, password);
-      navigate(loggedInUser.role === 'ADMIN' ? '/adminDashboard' : '/dashboard', { replace: true });
+      if (loggedInUser)
+        navigate(loggedInUser.role === 'ADMIN' ? '/adminDashboard' : '/dashboard', { replace: true });
     } catch (err: any) {
       console.error('Login failed:', err);
-      const apiError = err.response?.data?.error || 'Invalid credentials. Please try again.';
+      const rawError = err.response?.data?.error;
+      const apiError =
+        typeof rawError === 'string'
+          ? rawError
+          : rawError?.message || err.message || 'Invalid credentials. Please try again.';
       setError(apiError);
     } finally {
       setIsSubmitting(false);

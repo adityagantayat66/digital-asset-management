@@ -3,6 +3,7 @@ import os from 'os';
 import { prisma } from './prisma';
 import { redisClient } from './redis';
 import { deleteRawAsset } from './minio';
+import { LoggerService } from './logger';
 
 const CRON_LOCK_KEY = 'lock:cron:stale_cleanup';
 const CRON_LAST_EXECUTED_KEY = 'cron:last_executed';
@@ -53,6 +54,13 @@ export async function cleanupStaleUploads(): Promise<void> {
           deletedCount++;
           console.log(`  - Cleaned up stale asset ${asset.id} ("${asset.originalName}")`);
         } catch (err: any) {
+          LoggerService.logError({
+            level: 'CRITICAL',
+            functionName: 'Worker:Cron (Database Operation)',
+            message: typeof err === 'string' ? err : (err?.message || 'Failed to clean up stale asset'),
+            stack: err?.stack,
+            details: { assetId: asset.id, originalName: asset.originalName },
+          });
           console.error(`❌ [Cron Job] Failed to clean up stale asset ${asset.id}:`, err.message);
         }
       }
@@ -64,7 +72,7 @@ export async function cleanupStaleUploads(): Promise<void> {
     const cronTelemetry = {
       timestamp: new Date().toISOString(),
       deletedCount,
-      message: deletedCount > 0 
+      message: deletedCount > 0
         ? `Successfully cleaned up ${deletedCount} stale PENDING_UPLOAD asset(s) older than 6 hours.`
         : `Ran 24-hour cleanup cycle. 0 stale pending uploads found.`,
       executedBy: `worker:${os.hostname()}:${process.pid}`,
@@ -73,6 +81,13 @@ export async function cleanupStaleUploads(): Promise<void> {
     await redisClient.set(CRON_LAST_EXECUTED_KEY, JSON.stringify(cronTelemetry));
     console.log('✨ [Cron Job] Telemetry recorded in Redis:', cronTelemetry.message);
   } catch (error: any) {
+    LoggerService.logError({
+      level: 'CRITICAL',
+      functionName: 'Worker:Cron',
+      message: typeof error === 'string' ? error : (error?.message || 'Stale upload cleanup failed'),
+      stack: error?.stack,
+      details: {},
+    });
     console.error('❌ [Cron Job] Stale upload cleanup failed:', error.message || error);
   }
 }
@@ -90,7 +105,14 @@ export function initCronJobs(): void {
   console.log('📅 [Cron Service Initialized] Scheduled 24-hour stale upload cleanup job (0 0 * * *).');
 
   // Also run an initial check on worker startup
-  cleanupStaleUploads().catch((err) => {
+  cleanupStaleUploads().catch((err: any) => {
+    LoggerService.logError({
+      level: 'CRITICAL',
+      functionName: 'Worker:Cron (Startup)',
+      message: typeof err === 'string' ? err : (err?.message || 'Initial startup cleanup check failed'),
+      stack: err?.stack,
+      details: {},
+    });
     console.warn('⚠️ [Cron Job] Initial startup cleanup check notice:', err.message);
   });
 }

@@ -91,7 +91,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     } catch (err: any) {
       console.error('Upload Error:', err);
       setStep('ERROR');
-      setErrorMessage(err.response?.data?.error || err.message || 'An unexpected error occurred during upload');
+      const rawError = err.response?.data?.error;
+      const msg = typeof rawError === 'string' ? rawError : rawError?.message || err.message || 'An unexpected error occurred during upload';
+      setErrorMessage(msg);
     }
   };
 

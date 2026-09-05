@@ -24,6 +24,7 @@ RUN npm ci --only=production
 
 COPY --from=builder /app/worker/dist ./dist
 COPY --from=builder /app/worker/prisma ./prisma
+COPY --from=builder /app/worker/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/worker/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/worker/node_modules/@prisma ./node_modules/@prisma
 

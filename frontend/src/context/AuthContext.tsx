@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { User, AuthResponse } from '../types';
+import type { User } from '../types';
 import { api } from '../services/api';
 
 interface AuthContextType {
@@ -32,9 +32,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
           // Verify profile with backend API endpoint /auth/me
           const res = await api.get('/auth/me');
-          if (res.data?.user) {
-            setUser(res.data.user);
-            localStorage.setItem('dam_user', JSON.stringify(res.data.user));
+          const profileUser = res.data?.data?.user || res.data?.user;
+          if (profileUser) {
+            setUser(profileUser);
+            localStorage.setItem('dam_user', JSON.stringify(profileUser));
           }
         } catch (err: any) {
           console.error('Session validation check:', err?.response?.status || err.message);
@@ -51,8 +52,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const login = async (email: string, password: string): Promise<User> => {
-    const res = await api.post<AuthResponse>('/auth/login', { email, password });
-    const { token: newToken, user: newUser } = res.data;
+    const res = await api.post('/auth/login', { email, password });
+    const payload = res.data?.data || res.data;
+    const { token: newToken, user: newUser } = payload;
 
     setToken(newToken);
     setUser(newUser);
@@ -62,8 +64,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const register = async (email: string, password: string, name: string): Promise<User> => {
-    const res = await api.post<AuthResponse>('/auth/register', { email, password, name });
-    const { token: newToken, user: newUser } = res.data;
+    const res = await api.post('/auth/register', { email, password, name });
+    const payload = res.data?.data || res.data;
+    const { token: newToken, user: newUser } = payload;
 
     setToken(newToken);
     setUser(newUser);

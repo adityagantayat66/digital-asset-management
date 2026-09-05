@@ -8,6 +8,6 @@ dotenv.config();
 export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: process.env.DATABASE_URL || "postgresql://postgres:root@localhost:5432/dam_db?schema=public",
+    url: process.env.DATABASE_URL || "postgresql://postgres:postgres@postgres:5432/dam_db?schema=public",
   },
 });

@@ -4,6 +4,7 @@ import path from "path";
 import ffmpegStatic from "ffmpeg-static";
 import ffprobeStatic from "ffprobe-static";
 import { JobProgressPayload, publishJobProgress } from "../services/redis";
+import { LoggerService } from "../services/logger";
 
 const FFMPEG_PATH = process.env.FFMPEG_PATH || ffmpegStatic || "ffmpeg";
 const FFPROBE_PATH = process.env.FFPROBE_PATH || ffprobeStatic.path || "ffprobe";
@@ -50,6 +51,12 @@ export const processVideo = async (localFilePath: string, localDir: string, asse
     }
     catch (error) {
         console.error(`Error processing video: ${error}`);
+        LoggerService.logError({
+            level: 'CRITICAL',
+            functionName: 'Worker:VideoProcessor',
+            message: typeof error == 'string' ? error : JSON.stringify(error),
+            details: { abstractMsg: `Error processing video: ${error}` }
+        })
         throw error;
     }
 }
@@ -94,6 +101,12 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
                     height: videoStream?.height || 0,
                 })
             } catch (parseError) {
+                LoggerService.logError({
+                    level: 'CRITICAL',
+                    functionName: 'Worker:VideoProcessor',
+                    message: typeof parseError == 'string' ? parseError : JSON.stringify(parseError),
+                    details: { abstractMsg: `Failed to parse FFprobe output: ${parseError}` }
+                })
                 reject(new Error(`Failed to parse FFprobe output: ${parseError}`));
             }
         });
@@ -115,10 +128,22 @@ async function extractVideoThumbnail(inputPath: string, timeOffset: string = '2'
             stderrData += data;
         });
         child.on('error', (error) => {
+            LoggerService.logError({
+                level: 'CRITICAL',
+                functionName: 'Worker:VideoProcessor',
+                message: typeof error == 'string' ? error : JSON.stringify(error),
+                details: { abstractMsg: `FFmpeg failed: ${error.message}` }
+            })
             reject(new Error(`FFmpeg failed: ${error.message}`));
         });
         child.on('close', (code) => {
             if (code !== 0) {
+                LoggerService.logError({
+                    level: 'CRITICAL',
+                    functionName: 'Worker:VideoProcessor',
+                    message: typeof stderrData == 'string' ? stderrData : JSON.stringify(stderrData),
+                    details: { abstractMsg: `FFmpeg exited with code ${code}: ${stderrData}` }
+                })
                 reject(new Error(`FFmpeg exited with code ${code}: ${stderrData}`));
             } else {
                 resolve(outputPath);
@@ -165,10 +190,22 @@ async function transcodeVideo(localFilePath: string, outputPath: string, resolut
             }
         });
         child.on('error', (error) => {
+            LoggerService.logError({
+                level: 'CRITICAL',
+                functionName: 'Worker:VideoProcessor',
+                message: typeof error == 'string' ? error : JSON.stringify(error),
+                details: { abstractMsg: `FFmpeg failed: ${error.message}` }
+            })
             reject(new Error(`FFmpeg failed: ${error.message}`));
         });
         child.on('close', (code) => {
             if (code !== 0) {
+                LoggerService.logError({
+                    level: 'CRITICAL',
+                    functionName: 'Worker:VideoProcessor',
+                    message: typeof stderrData == 'string' ? stderrData : JSON.stringify(stderrData),
+                    details: { abstractMsg: `FFmpeg exited with code ${code}: ${stderrData}` }
+                })
                 reject(new Error(`FFmpeg exited with code ${code}: ${stderrData}`));
             } else {
                 resolve(outputPath);

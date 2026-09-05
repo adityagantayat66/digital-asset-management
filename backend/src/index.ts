@@ -3,10 +3,13 @@ import cors from 'cors';
 import { env } from './config/env';
 import authRoutes from './routes/authRoutes';
 import assetRoutes from './routes/assetRoutes';
+import adminRoutes from './routes/adminRoutes';
 import { connectRabbitMQ } from './services/rabbitmq';
 import { authenticate, requireAdmin } from './middleware/authMiddleware';
-import adminRoutes from './routes/adminRoutes';
+import { errorHandler } from './middleware/errorHandler';
 import { HttpStatus } from './utils/httpStatus';
+import { sendSuccess, sendError } from './utils/apiResponse';
+import { ensureMinioBucketsExist } from './services/minio';
 
 const app = express();
 
@@ -29,26 +32,28 @@ app.use('/api/admin', authenticate, requireAdmin, adminRoutes);
 
 // 5. System Healthcheck Endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.status(HttpStatus.OK).json({
-    status: 'UP',
-    timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV,
-    uptime: process.uptime(),
-  });
+  sendSuccess(
+    res,
+    {
+      status: 'UP',
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      uptime: process.uptime(),
+    },
+    'System health check successful',
+    HttpStatus.OK
+  );
 });
 
-// 6. Global Error Handling Middleware
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('❌ Global API Error:', err);
-  res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-    error: 'Internal Server Error',
-    message: env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
-  });
+// 6. Handle 404 for Undefined API Routes
+app.use('*', (_req: Request, res: Response) => {
+  sendError(res, 'Requested API route not found', HttpStatus.NOT_FOUND, 'NOT_FOUND');
 });
 
-import { ensureMinioBucketsExist } from './services/minio';
+// 7. Global Error Handling Middleware (Safety Net)
+app.use(errorHandler);
 
-// 7. Start HTTP Server and initialize RabbitMQ topology & MinIO buckets
+// 8. Start HTTP Server and initialize RabbitMQ topology & MinIO buckets
 async function startServer() {
   try {
     // Ensure MinIO raw and processed buckets exist with public-read policy for thumbnails

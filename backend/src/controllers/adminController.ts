@@ -1,220 +1,197 @@
 import { Request, Response } from 'express';
-import { deleteFailedAssets, getAdminMetrics, getDownloadAndMemoryStats, getFailedAssetsFromDB, getQueueMetrics, purgeDlq, requeueFailedAsset, syncDlqToDb } from '../api-services/adminService';
+import {
+  deleteFailedAssets,
+  getAdminMetrics,
+  getDownloadAndMemoryStats,
+  getFailedAssetsFromDB,
+  getQueueMetrics,
+  purgeDlq,
+  requeueFailedAsset,
+  syncDlqToDb,
+} from '../api-services/adminService';
 import { HttpStatus } from '../utils/httpStatus';
+import { sendSuccess, sendError } from '../utils/apiResponse';
 
 export async function getInfraMetrics(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.getInfraMetrics';
   try {
     const metrics = await getAdminMetrics();
 
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Admin dashboard data fetched successfully',
-      data: metrics
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+    sendSuccess(res, metrics, 'Admin dashboard data fetched successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error fetching infra metrics',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'INFRA_METRICS_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
+
 export async function getWorkerHealthMetrics(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.getWorkerHealthMetrics';
   try {
     const health = await getQueueMetrics();
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Worker health metrics fetched successfully',
-      data: health
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, health, 'Worker health metrics fetched successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error fetching worker health metrics',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'WORKER_HEALTH_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
+
 export async function syncDlq(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.syncDlq';
   try {
     const result = await syncDlqToDb();
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'DLQ synced to database successfully',
-      data: result
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, result, 'DLQ synced to database successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error syncing DLQ',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'SYNC_DLQ_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
+
 export async function purgeDeadLetters(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.purgeDeadLetters';
   try {
     const result = await purgeDlq();
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Dead letters purged successfully',
-      data: result
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, result, 'Dead letters purged successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error purging dead letters',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'PURGE_DLQ_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
+
 export async function getTopStats(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.getTopStats';
   try {
     const stats = await getDownloadAndMemoryStats();
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Top stats fetched successfully',
-      data: { ...stats }
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, { ...stats }, 'Top stats fetched successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error fetching top stats',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'TOP_STATS_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
 
 export async function getFailedAssets(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.getFailedAssets';
   try {
     const assets = await getFailedAssetsFromDB();
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Failed assets fetched successfully',
-      data: assets
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, assets, 'Failed assets fetched successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error fetching failed assets',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'GET_FAILED_ASSETS_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
+
 export async function retryFailedAssets(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.retryFailedAssets';
   try {
     if (!req.params.assetId) {
-      throw new Error("Asset ID is required");
+      sendError(res, 'Asset ID is required', HttpStatus.BAD_REQUEST, 'BAD_REQUEST');
+      return;
     }
     const result = await requeueFailedAsset(req.params.assetId);
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Failed asset retried successfully',
-      data: result
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, result, 'Failed asset retried successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error for assetId ${req.params?.assetId}:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error retrying failed asset',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'RETRY_FAILED_ASSET_FAILED',
+      { function: FUNCTION_NAME, assetId: req.params?.assetId },
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }
+
 export async function discardFailedAssets(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.discardFailedAssets';
   try {
     if (!req.params.assetId) {
-      throw new Error("Asset ID is required");
+      sendError(res, 'Asset ID is required', HttpStatus.BAD_REQUEST, 'BAD_REQUEST');
+      return;
     }
     const result = await deleteFailedAssets(req.params.assetId);
-    res.status(HttpStatus.OK).json({
-      success: true,
-      message: 'Failed asset discarded successfully',
-      data: result
-    });
-  }
-  catch (err) {
-    if (err instanceof Error) {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: err.message,
-        data: null
-      });
-    }
-    else {
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: 'Internal server error',
-        data: null
-      });
-    }
+
+    sendSuccess(res, result, 'Failed asset discarded successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error for assetId ${req.params?.assetId}:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error discarding failed asset',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'DISCARD_FAILED_ASSET_FAILED',
+      { function: FUNCTION_NAME, assetId: req.params?.assetId },
+      FUNCTION_NAME,
+      true,
+      req,
+      err
+    );
   }
 }

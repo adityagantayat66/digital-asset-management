@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-import { z } from 'zod';
+import { string, z } from 'zod';
 import { registerUser, loginUser, getUserProfile } from '../api-services/authService';
-import { HttpStatus } from '../utils/httpStatus';
+import { HttpStatus, getHttpStatusName } from '../utils/httpStatus';
+import { sendSuccess, sendError } from '../utils/apiResponse';
+import { LoggerService } from '../services/logger';
 
 // Validation Schemas using Zod
 const registerSchema = z.object({
@@ -20,27 +22,48 @@ const loginSchema = z.object({
  * Registers a new user account with hashed password and returns JWT token.
  */
 export async function register(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'authController.register';
   try {
     const parseResult = registerSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Validation Error', details: parseResult.error.format() });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Input validation failed:`, parseResult.error.format());
+      sendError(
+        res,
+        'Validation Error',
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        parseResult.error.format()
+      );
       return;
     }
 
     const result = await registerUser(parseResult.data);
 
-    res.status(HttpStatus.CREATED).json({
-      message: 'User registered successfully',
-      token: result.token,
-      user: result.user,
-    });
+    sendSuccess(
+      res,
+      result,
+      'User registered successfully',
+      HttpStatus.CREATED
+    );
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to register user for email ${req.body?.email}:`, error);
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      const code = getHttpStatusName(error.statusCode, 'BAD_REQUEST');
+      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error);
       return;
     }
-    console.error('❌ Register Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error during registration' });
+
+    sendError(
+      res,
+      'Internal Server Error during registration',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'REGISTRATION_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error
+    );
   }
 }
 
@@ -49,27 +72,48 @@ export async function register(req: Request, res: Response): Promise<void> {
  * Authenticates user credentials and returns a fresh JWT token.
  */
 export async function login(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'authController.login';
   try {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Validation Error', details: parseResult.error.format() });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Input validation failed:`, parseResult.error.format());
+      sendError(
+        res,
+        'Validation Error',
+        HttpStatus.BAD_REQUEST,
+        'VALIDATION_ERROR',
+        parseResult.error.format()
+      );
       return;
     }
 
     const result = await loginUser(parseResult.data);
 
-    res.status(HttpStatus.OK).json({
-      message: 'Login successful',
-      token: result.token,
-      user: result.user,
-    });
+    sendSuccess(
+      res,
+      result,
+      'Login successful',
+      HttpStatus.OK
+    );
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to authenticate email ${req.body?.email}:`, error);
+
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      const code = getHttpStatusName(error.statusCode, 'BAD_REQUEST');
+      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error);
       return;
     }
-    console.error('❌ Login Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error during login' });
+    sendError(
+      res,
+      'Internal Server Error during login',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'LOGIN_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error
+    );
   }
 }
 
@@ -78,21 +122,41 @@ export async function login(req: Request, res: Response): Promise<void> {
  * Returns profile details for the currently authenticated user.
  */
 export async function getProfile(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'authController.getProfile';
   try {
     if (!req.user) {
-      res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized' });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Missing user session payload on request`);
+      sendError(res, 'Unauthorized', HttpStatus.UNAUTHORIZED, 'UNAUTHORIZED');
       return;
     }
 
     const user = await getUserProfile(req.user.userId);
 
-    res.status(HttpStatus.OK).json({ user });
+    sendSuccess(
+      res,
+      { user },
+      'User profile fetched successfully',
+      HttpStatus.OK
+    );
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to fetch user profile for userId ${req.user?.userId}:`, error);
+
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      const code = getHttpStatusName(error.statusCode, 'ERROR');
+      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error);
       return;
     }
-    console.error('❌ Get Profile Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Internal Server Error fetching user profile' });
+
+    sendError(
+      res,
+      'Internal Server Error fetching user profile',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'FETCH_PROFILE_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error
+    );
   }
 }

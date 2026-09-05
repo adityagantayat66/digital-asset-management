@@ -160,6 +160,21 @@ services:
     depends_on:
       - dam-backend
 
+  # 9. System Logger Microservice
+  logger:
+    image: digital-access-management-logger:latest
+    build:
+      context: .
+      dockerfile: logger/Dockerfile
+    restart: always
+    environment:
+      NODE_ENV: production
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    volumes:
+      - ./Error-Logs:/app/logger/Error-Logs
+    depends_on:
+      - rabbitmq
+
 volumes:
   postgres_data:
   redis_data:
@@ -169,3 +184,4 @@ volumes:
 
     #docker compose build
     #docker stack deploy -c docker-compose.yml --resolve-image=never dam
+

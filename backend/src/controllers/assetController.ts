@@ -9,6 +9,8 @@ import {
 } from '../api-services/assetService';
 import { redisClient, redisSubscriber } from '../services/redis';
 import { HttpStatus } from '../utils/httpStatus';
+import { sendSuccess, sendError } from '../utils/apiResponse';
+import { LoggerService } from '../services/logger';
 
 // Validation Schemas using Zod
 const presignedUrlSchema = z.object({
@@ -30,14 +32,17 @@ const completeUploadSchema = z.object({
  * @Role USER, ADMIN
  */
 export async function requestPresignedUrl(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'assetController.requestPresignedUrl';
   try {
     if (!req.user) {
-      res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized' });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Missing user auth context`);
+      sendError(res, 'Unauthorized', HttpStatus.UNAUTHORIZED, 'UNAUTHORIZED');
       return;
     }
     const parsedResult = presignedUrlSchema.safeParse(req.body);
     if (!parsedResult.success) {
-      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Validation Error', details: parsedResult.error.format() });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Validation failed:`, parsedResult.error.format());
+      sendError(res, 'Validation Error', HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', parsedResult.error.format());
       return;
     }
     const { filename, mimeType, tags, size } = parsedResult.data;
@@ -50,14 +55,22 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
       userId: req.user.userId,
     });
 
-    res.status(HttpStatus.OK).json(result);
+    sendSuccess(res, result, 'Presigned URL generated successfully', HttpStatus.OK);
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to generate presigned upload URL:`, error);
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'PRESIGNED_URL_ERROR', null,
+        FUNCTION_NAME,
+        true,
+        req,
+        error);
       return;
     }
-    console.error('❌ Presigned URL Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to generate presigned upload URL' });
+    sendError(res, 'Failed to generate presigned upload URL', HttpStatus.INTERNAL_SERVER_ERROR, 'PRESIGNED_URL_FAILED', null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error);
   }
 }
 
@@ -69,15 +82,18 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
  * @Role USER, ADMIN
  */
 export async function completeUpload(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'assetController.completeUpload';
   try {
     if (!req.user) {
-      res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized' });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Missing user auth context`);
+      sendError(res, 'Unauthorized', HttpStatus.UNAUTHORIZED, 'UNAUTHORIZED');
       return;
     }
 
     const parseResult = completeUploadSchema.safeParse(req.body);
     if (!parseResult.success) {
-      res.status(HttpStatus.BAD_REQUEST).json({ error: 'Validation Error', details: parseResult.error.format() });
+      console.warn(`⚠️ [${FUNCTION_NAME}] Validation failed:`, parseResult.error.format());
+      sendError(res, 'Validation Error', HttpStatus.BAD_REQUEST, 'VALIDATION_ERROR', parseResult.error.format());
       return;
     }
 
@@ -89,14 +105,22 @@ export async function completeUpload(req: Request, res: Response): Promise<void>
       userRole: req.user.role,
     });
 
-    res.status(HttpStatus.ACCEPTED).json(result);
+    sendSuccess(res, result, result.message, HttpStatus.ACCEPTED);
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to acknowledge upload completion:`, error);
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'FORBIDDEN', null,
+        FUNCTION_NAME,
+        true,
+        req,
+        error);
       return;
     }
-    console.error('❌ Complete Upload Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to acknowledge upload completion' });
+    sendError(res, 'Failed to acknowledge upload completion', HttpStatus.INTERNAL_SERVER_ERROR, 'COMPLETE_UPLOAD_FAILED', null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error);
   }
 }
 
@@ -158,7 +182,7 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
   };
 
   const cleanup = () => {
-    redisSubscriber.unsubscribe(channelName).catch(() => {});
+    redisSubscriber.unsubscribe(channelName).catch(() => { });
     redisSubscriber.removeListener('message', messageHandler);
   };
 
@@ -182,6 +206,7 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
  * @Role USER, ADMIN
  */
 export async function listAssets(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'assetController.listAssets';
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 12;
@@ -202,14 +227,23 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
       userRole,
     });
 
-    res.status(HttpStatus.OK).json(result);
+    sendSuccess(res, result, 'Gallery assets fetched successfully', HttpStatus.OK);
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to fetch gallery assets:`, error);
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'LIST_ASSETS_ERROR', null,
+        FUNCTION_NAME,
+        true,
+        req,
+        error);
       return;
     }
-    console.error('❌ List Assets Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to fetch gallery assets' });
+    sendError(res, 'Failed to fetch gallery assets', HttpStatus.INTERNAL_SERVER_ERROR, 'LIST_ASSETS_FAILED', null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error,
+    );
   }
 }
 
@@ -221,19 +255,29 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
  * @Role USER, ADMIN
  */
 export async function getAssetById(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'assetController.getAssetById';
   try {
     const { id } = req.params;
 
     const asset = await getAssetDetails(id);
 
-    res.status(HttpStatus.OK).json(asset);
+    sendSuccess(res, asset, 'Asset metadata fetched successfully', HttpStatus.OK);
   } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to fetch asset details for ID ${req.params?.id}:`, error);
     if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'GET_ASSET_ERROR', null,
+        FUNCTION_NAME,
+        true,
+        req,
+        error);
       return;
     }
-    console.error('❌ Get Asset Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to fetch asset metadata' });
+    sendError(res, 'Failed to fetch asset metadata', HttpStatus.INTERNAL_SERVER_ERROR, 'GET_ASSET_FAILED', null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error);
+
   }
 }
 
@@ -245,18 +289,30 @@ export async function getAssetById(req: Request, res: Response): Promise<void> {
  * @Role ADMIN
  */
 export async function downloadAsset(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'assetController.downloadAsset';
   try {
     const { id } = req.params;
-
-    const result = await processAssetDownload(id);
-
-    res.status(HttpStatus.OK).json(result);
-  } catch (error: any) {
-    if (error.statusCode) {
-      res.status(error.statusCode).json({ error: error.message });
+    if (!id) {
+      sendError(res, 'Asset ID is required', HttpStatus.BAD_REQUEST, 'BAD_REQUEST');
       return;
     }
-    console.error('❌ Download Asset Error:', error);
-    res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ error: 'Failed to process asset download request' });
+    const result = await processAssetDownload(id);
+
+    sendSuccess(res, result, 'Asset download URL generated successfully', HttpStatus.OK);
+  } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to process asset download request for ID ${req.params?.id}:`, error);
+    if (error.statusCode) {
+      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'DOWNLOAD_ASSET_ERROR', null,
+        FUNCTION_NAME,
+        true,
+        req,
+        error);
+      return;
+    }
+    sendError(res, 'Failed to process asset download request', HttpStatus.INTERNAL_SERVER_ERROR, 'DOWNLOAD_ASSET_FAILED', null,
+      FUNCTION_NAME,
+      true,
+      req,
+      error);
   }
 }

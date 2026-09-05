@@ -7,10 +7,12 @@ export const formatBytes = (bytes: number): string => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
+
 export function handleAndForwardAPIResponse(response: AxiosResponse) {
-    if (response.data.success) {
+    if (response.data?.success) {
         return response.data.data;
     } else {
-        throw new Error(response.data.message);
+        const errMsg = response.data?.error?.message || response.data?.message || 'Request failed';
+        throw new Error(errMsg);
     }
 }

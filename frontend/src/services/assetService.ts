@@ -14,29 +14,29 @@ export const assetService = {
    * Fetch paginated & filtered list of assets (Redis RAM cached on backend)
    */
   async listAssets(params: ListAssetsParams = {}): Promise<AssetsListResponse> {
-    const res = await api.get<AssetsListResponse>('/assets', { params });
-    return res.data;
+    const res = await api.get('/assets', { params });
+    return (res.data as any).data || res.data;
   },
 
   /**
    * Fetch single asset metadata by ID
    */
   async getAssetById(id: string): Promise<Asset> {
-    const res = await api.get<Asset>(`/assets/${id}`);
-    return res.data;
+    const res = await api.get(`/assets/${id}`);
+    return (res.data as any).data || res.data;
   },
 
   /**
    * Step 1: Request presigned S3 PUT URL for uploading raw file directly to MinIO
    */
   async requestPresignedUrl(filename: string, mimeType: string, size: number, tags: string[]): Promise<PresignedUrlResponse> {
-    const res = await api.post<PresignedUrlResponse>('/assets/presigned-url', {
+    const res = await api.post('/assets/presigned-url', {
       filename,
       mimeType,
       size,
       tags,
     });
-    return res.data;
+    return (res.data as any).data || res.data;
   },
 
   /**
@@ -74,8 +74,8 @@ export const assetService = {
    * Step 3: Confirm upload completion and publish job to RabbitMQ queue
    */
   async completeUpload(assetId: string): Promise<{ message: string; status: string }> {
-    const res = await api.post<{ message: string; status: string }>('/assets/complete-upload', { assetId });
-    return res.data;
+    const res = await api.post('/assets/complete-upload', { assetId });
+    return (res.data as any).data || res.data;
   },
 
   /**
@@ -112,8 +112,9 @@ export const assetService = {
    * Request S3 presigned GET URL and trigger browser download
    */
   async downloadAsset(asset: Asset): Promise<void> {
-    const res = await api.get<{ downloadUrl: string }>(`/assets/${asset.id}/download`);
-    const downloadUrl = res.data.downloadUrl;
+    const res = await api.get(`/assets/${asset.id}/download`);
+    const payload = (res.data as any).data || res.data;
+    const downloadUrl = payload.downloadUrl;
 
     const a = document.createElement('a');
     a.href = downloadUrl;

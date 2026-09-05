@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { Role } from '@prisma/client';
 import { HttpStatus } from '../utils/httpStatus';
+import { sendError } from '../utils/apiResponse';
 
 export interface JwtPayload {
   userId: string;
@@ -34,7 +35,12 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 
   if (!token) {
-    res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized: Missing or invalid authentication token' });
+    sendError(
+      res,
+      'Unauthorized: Missing or invalid authentication token',
+      HttpStatus.UNAUTHORIZED,
+      'UNAUTHORIZED'
+    );
     return;
   }
 
@@ -43,7 +49,12 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     req.user = decoded;
     next();
   } catch (error) {
-    res.status(HttpStatus.UNAUTHORIZED).json({ error: 'Unauthorized: Invalid or expired access token' });
+    sendError(
+      res,
+      'Unauthorized: Invalid or expired access token',
+      HttpStatus.UNAUTHORIZED,
+      'UNAUTHORIZED'
+    );
     return;
   }
 }
@@ -53,7 +64,12 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user || req.user.role !== 'ADMIN') {
-    res.status(HttpStatus.FORBIDDEN).json({ error: 'Forbidden: Admin privilege required' });
+    sendError(
+      res,
+      'Forbidden: Admin privilege required',
+      HttpStatus.FORBIDDEN,
+      'FORBIDDEN'
+    );
     return;
   }
   next();

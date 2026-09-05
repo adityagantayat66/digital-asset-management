@@ -10,9 +10,9 @@ import { prisma } from './services/prisma';
 import { generateImageThumbnail } from './background-jobs/imageProcessor';
 import { processVideo } from './background-jobs/videoProcessor';
 import { initCronJobs } from './services/cronService';
+import { connectRabbitMQ, QUEUE_ASSET_PROCESSING } from './services/rabbitmq';
+import { LoggerService } from './services/logger';
 
-const QUEUE_ASSET_PROCESSING = 'asset_processing';
-const DLX_ASSET_PROCESSING = 'asset_processing_dlx';
 const JobPayloadSchema = z.object({
     assetId: z.string(),
     rawPath: z.string(),
@@ -31,27 +31,9 @@ async function startWorker() {
         initCronJobs();
 
         console.log('🚀 DAM Worker Service Initializing...');
-        const connection = await amqp.connect(env.RABBITMQ_URL!, { heartbeat: 60 });
 
-        connection.on('error', (err) => {
-            console.error('❌ RabbitMQ Connection Error:', err.message);
-        });
+        const channel = await connectRabbitMQ();
 
-        connection.on('close', () => {
-            console.warn('⚠️ RabbitMQ connection closed. Attempting reconnect in 5 seconds...');
-            setTimeout(() => {
-                startWorker().catch((err) => console.error('❌ Reconnect failed:', err));
-            }, 5000);
-        });
-
-        const channel = await connection.createChannel();
-        await channel.assertExchange(DLX_ASSET_PROCESSING, 'direct', { durable: true });
-        await channel.assertQueue(QUEUE_ASSET_PROCESSING, {
-            arguments: {
-                'x-dead-letter-exchange': DLX_ASSET_PROCESSING,
-                'x-dead-letter-routing-key': 'failed'
-            }, durable: true
-        });
         await channel.prefetch(env.WORKER_CONCURRENCY);
         channel.consume(QUEUE_ASSET_PROCESSING, async (msg) => {
             if (!msg) {
@@ -60,6 +42,12 @@ async function startWorker() {
             const result = JobPayloadSchema.safeParse(JSON.parse(msg.content.toString()));
             if (!result.success) {
                 console.error('❌ Failed to parse job payload:', result.error);
+                LoggerService.logError({
+                    level: 'CRITICAL',
+                    functionName: 'Worker:Index',
+                    message: JSON.stringify(result.error),
+                    details: result.error,
+                })
                 channel.nack(msg, false, false);
                 return;
             }
@@ -130,23 +118,42 @@ async function startWorker() {
                     });
                 }
                 else {
+                    LoggerService.logError({
+                        level: 'CRITICAL',
+                        functionName: 'Worker:Index',
+                        message: 'Unsupported asset MIME type',
+                        details: { assetId },
+                    })
                     throw new Error(`Unsupported asset MIME type: ${mimeType}`);
                 }
                 channel.ack(msg);
             }
             catch (error: any) {
+                LoggerService.logError({
+                    level: 'CRITICAL',
+                    functionName: 'Worker:Index',
+                    message: typeof error === 'string' ? error : (error?.message || 'Processing failed'),
+                    stack: error?.stack,
+                    details: { assetId },
+                });
                 console.error(`❌ Processing failed for asset ${assetId}:`, error);
                 await publishJobProgress({ assetId, progress: 0, status: 'FAILED', stage: 'FAILED', error: error.message })
                 await prisma.asset.update({ where: { id: assetId }, data: { status: 'FAILED', errorMessage: error.message || 'Unknown processing error', } });
                 channel.nack(msg, false, false);
-            }
-            finally {
-                await redisClient.del(lockKey);
-                if (fs.existsSync(tempDir)) {
+            } finally {
+                // Remove temporary staging directory
+                if (tempDir && fs.existsSync(tempDir)) {
                     try {
                         await fs.promises.rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
                         console.log(`🧹 Successfully cleaned up temp directory: ${tempDir}`);
-                    } catch (cleanupErr) {
+                    } catch (cleanupErr: any) {
+                        LoggerService.logError({
+                            level: 'WARN',
+                            functionName: 'Worker:Index',
+                            message: typeof cleanupErr === 'string' ? cleanupErr : (cleanupErr?.message || 'Cleanup warning'),
+                            stack: cleanupErr?.stack,
+                            details: { tempDir },
+                        });
                         console.warn(`⚠️ Warning: Could not remove temp dir ${tempDir}:`, cleanupErr);
                     }
                 }
