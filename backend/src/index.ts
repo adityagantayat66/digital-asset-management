@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { env } from './config/env';
 import authRoutes from './routes/authRoutes';
 import assetRoutes from './routes/assetRoutes';
@@ -13,24 +15,66 @@ import { ensureMinioBucketsExist } from './services/minio';
 
 const app = express();
 
-// 1. Enable Cross-Origin Resource Sharing (CORS)
-app.use(cors());
+// Enable Security Headers with Helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"], //default fallback for all resources
+        scriptSrc: ["'self'", "'unsafe-inline'"], //allow inline scripts
+        styleSrc: ["'self'", "'unsafe-inline'"], //allow inline styles
+        imgSrc: ["'self'", 'data:', 'blob:', 'http://localhost:9000', 'http://localhost:8080'], //allow images from Base64 inline image data,: Object URLs created in JS via URL.createObjectURL(file),  localhost
+        connectSrc: ["'self'", 'http://localhost:8080', 'http://localhost:5000'], //allow requests to localhost
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, //allow cross-origin requests
+    hsts: env.ENABLE_HTTPS, // ⚡ Only enforce HTTPS when ENABLE_HTTPS=true
+  })
+);
 
-// 2. Parse incoming JSON request bodies
+// Enable Cross-Origin Resource Sharing (CORS) with Credentials for HttpOnly Cookies
+const ALLOWED_ORIGINS = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://127.0.0.1:8080',
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser tools (Postman, curl, server-to-server) where origin is undefined
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Allow requests from whitelisted origins or local dev ports
+      if (ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS policy'));
+    },
+    credentials: true,
+    maxAge: 86400, // Cache preflight OPTIONS response for 24 hours
+  })
+);
+
+// Parse Cookies & Request Bodies
+app.use(cookieParser());
 app.use(express.json());
 
-// 3. HTTP Request Logging Middleware
+// HTTP Request Logging Middleware
 app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// 4. API Route Handlers
+// API Route Handlers
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', authenticate, assetRoutes);
 app.use('/api/admin', authenticate, requireAdmin, adminRoutes);
 
-// 5. System Healthcheck Endpoint
+// System Healthcheck Endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
   sendSuccess(
     res,
@@ -45,15 +89,15 @@ app.get('/api/health', (_req: Request, res: Response) => {
   );
 });
 
-// 6. Handle 404 for Undefined API Routes
+// Handle 404 for Undefined API Routes
 app.use('*', (_req: Request, res: Response) => {
   sendError(res, 'Requested API route not found', HttpStatus.NOT_FOUND, 'NOT_FOUND');
 });
 
-// 7. Global Error Handling Middleware (Safety Net)
+// Global Error Handling Middleware (Safety Net)
 app.use(errorHandler);
 
-// 8. Start HTTP Server and initialize RabbitMQ topology & MinIO buckets
+// Start HTTP Server and initialize RabbitMQ topology & MinIO buckets
 async function startServer() {
   try {
     // Ensure MinIO raw and processed buckets exist with public-read policy for thumbnails

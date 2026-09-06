@@ -1,9 +1,12 @@
 import { Request, Response } from 'express';
-import { string, z } from 'zod';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { z } from 'zod';
 import { registerUser, loginUser, getUserProfile } from '../api-services/authService';
 import { HttpStatus, getHttpStatusName } from '../utils/httpStatus';
 import { sendSuccess, sendError } from '../utils/apiResponse';
-import { LoggerService } from '../services/logger';
+import { env } from '../config/env';
+import { saveRefreshToken, getRefreshTokenPayload, deleteRefreshToken } from '../services/redis';
 
 // Validation Schemas using Zod
 const registerSchema = z.object({
@@ -16,6 +19,54 @@ const loginSchema = z.object({
   email: z.string().email('Invalid email address format'),
   password: z.string().min(1, 'Password is required'),
 });
+
+/**
+ * Helper to set auth cookies (Access Token & Refresh Token)
+ * Revokes any existing refresh token in Redis before issuing a new one.
+ */
+async function attachAuthCookies(
+  req: Request,
+  res: Response,
+  accessToken: string,
+  user: { id: string; email: string; role: string }
+): Promise<string> {
+  const isSecure = env.ENABLE_HTTPS;
+
+  // 0. Revoke old refresh token in Redis if browser sent one
+  const existingRefreshToken = req.cookies?.dam_refresh_token;
+  if (existingRefreshToken) {
+    await deleteRefreshToken(existingRefreshToken);
+  }
+
+  // 1. Set Access Token Cookie (15 Minutes)
+  res.cookie('dam_token', accessToken, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'strict',
+    maxAge: 15 * 60 * 1000,
+  });
+
+  // 2. Generate Opaque Refresh Token (7 Days)
+  const refreshToken = crypto.randomBytes(32).toString('hex');
+
+  // 3. Save Refresh Token in Redis
+  await saveRefreshToken(refreshToken, {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+  });
+
+  // 4. Set Refresh Token Cookie restricted to /api/auth path scope
+  res.cookie('dam_refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'strict',
+    path: '/api/auth',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return refreshToken;
+}
 
 /**
  * POST /api/auth/register
@@ -38,6 +89,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     }
 
     const result = await registerUser(parseResult.data);
+    await attachAuthCookies(req, res, result.token, result.user);
 
     sendSuccess(
       res,
@@ -69,7 +121,7 @@ export async function register(req: Request, res: Response): Promise<void> {
 
 /**
  * POST /api/auth/login
- * Authenticates user credentials and returns a fresh JWT token.
+ * Authenticates user credentials, returns JWT payload, and sets HttpOnly cookies.
  */
 export async function login(req: Request, res: Response): Promise<void> {
   const FUNCTION_NAME = 'authController.login';
@@ -88,6 +140,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     const result = await loginUser(parseResult.data);
+    await attachAuthCookies(req, res, result.token, result.user);
 
     sendSuccess(
       res,
@@ -115,6 +168,90 @@ export async function login(req: Request, res: Response): Promise<void> {
       error
     );
   }
+}
+
+/**
+ * POST /api/auth/refresh
+ * Validates Refresh Token from Redis, performs Refresh Token Rotation, and returns new Access Token.
+ */
+export async function refreshTokenHandler(req: Request, res: Response): Promise<void> {
+  const FUNCTION_NAME = 'authController.refreshTokenHandler';
+  try {
+    const refreshToken = req.cookies?.dam_refresh_token;
+
+    if (!refreshToken) {
+      sendError(res, 'Missing refresh token', HttpStatus.UNAUTHORIZED, 'INVALID_REFRESH_TOKEN');
+      return;
+    }
+
+    // 1. Fetch user session payload from Redis
+    const payload = await getRefreshTokenPayload(refreshToken);
+
+    if (!payload) {
+      sendError(res, 'Refresh token expired or revoked', HttpStatus.UNAUTHORIZED, 'REFRESH_TOKEN_EXPIRED');
+      return;
+    }
+
+    // 2. Perform Refresh Token Rotation: Delete old refresh token from Redis
+    await deleteRefreshToken(refreshToken);
+
+    // 3. Generate new short-lived Access Token (15m)
+    const newAccessToken = jwt.sign(
+      { userId: payload.userId, email: payload.email, role: payload.role },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
+    );
+
+    // 4. Attach new cookies and save new refresh token in Redis
+    await attachAuthCookies(req, res, newAccessToken, {
+      id: payload.userId,
+      email: payload.email,
+      role: payload.role,
+    });
+
+    sendSuccess(
+      res,
+      { token: newAccessToken },
+      'Token refreshed successfully',
+      HttpStatus.OK
+    );
+  } catch (error: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Failed to refresh authentication token:`, error);
+    sendError(
+      res,
+      'Internal Server Error during token refresh',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'REFRESH_FAILED'
+    );
+  }
+}
+
+/**
+ * POST /api/auth/logout
+ * Clears HttpOnly authentication cookies and revokes refresh token in Redis.
+ */
+export async function logout(req: Request, res: Response): Promise<void> {
+  const isSecure = env.ENABLE_HTTPS;
+  const refreshToken = req.cookies?.dam_refresh_token;
+
+  if (refreshToken) {
+    await deleteRefreshToken(refreshToken);
+  }
+
+  res.clearCookie('dam_token', {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'strict',
+  });
+
+  res.clearCookie('dam_refresh_token', {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'strict',
+    path: '/api/auth',
+  });
+
+  sendSuccess(res, null, 'Logged out successfully', HttpStatus.OK);
 }
 
 /**

@@ -10,9 +10,13 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('5000'),
 
+  // HTTPS & Security Settings
+  ENABLE_HTTPS: z.string().transform((val) => val === 'true').default('false'),
+
   // JWT Authentication Settings
   JWT_SECRET: z.string().default('dam_super_secret_jwt_key_change_in_production'),
-  JWT_EXPIRES_IN: z.string().default('7d'),
+  JWT_EXPIRES_IN: z.string().default('15m'),
+  REFRESH_TOKEN_EXPIRES_IN_SECONDS: z.string().transform(Number).default('604800'),
 
   // PostgreSQL Database Connection URL
   DATABASE_URL: z.string().default('postgresql://postgres:root@localhost:5432/dam_db?schema=public'),

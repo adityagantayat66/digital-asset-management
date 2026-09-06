@@ -24,3 +24,45 @@ redisClient.on('connect', () => {
 redisClient.on('error', (err) => {
   console.error('❌ Redis Connection Error:', err);
 });
+
+export interface RefreshTokenPayload {
+  userId: string;
+  email: string;
+  role: string;
+}
+
+const REFRESH_TOKEN_PREFIX = 'refresh_token:';
+
+/**
+ * Saves a refresh token string mapped to user payload with TTL in Redis.
+ */
+export async function saveRefreshToken(
+  refreshToken: string,
+  payload: RefreshTokenPayload,
+  ttlSeconds: number = env.REFRESH_TOKEN_EXPIRES_IN_SECONDS
+): Promise<void> {
+  const key = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;
+  await redisClient.setex(key, ttlSeconds, JSON.stringify(payload));
+}
+
+/**
+ * Fetches the user payload associated with a refresh token from Redis.
+ */
+export async function getRefreshTokenPayload(refreshToken: string): Promise<RefreshTokenPayload | null> {
+  const key = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;
+  const data = await redisClient.get(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as RefreshTokenPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Removes a refresh token from Redis (revocation / logout).
+ */
+export async function deleteRefreshToken(refreshToken: string): Promise<void> {
+  const key = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;
+  await redisClient.del(key);
+}

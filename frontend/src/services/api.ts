@@ -4,6 +4,7 @@ export const API_BASE_URL = 'http://localhost:8080/api';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,16 +24,40 @@ api.interceptors.request.use(
   }
 );
 
-// Response Interceptor: Handle 401 Unauthorized globally and normalize error messages
+// Response Interceptor: Handle 401 Unauthorized with Automatic Silent Refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('dam_token');
-      localStorage.removeItem('dam_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+    const errorCode = error.response?.data?.code;
+
+    // Auto-Refresh: If access token expired and request hasn't been retried yet
+    if (
+      error.response?.status === 401 &&
+      errorCode === 'TOKEN_EXPIRED' &&
+      originalRequest &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+      try {
+        // Call refresh endpoint to rotate refresh token & get fresh access token cookie
+        await api.post('/auth/refresh');
+        // Retry the original request transparently
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh token is also expired or invalid -> logout & redirect to login
+        localStorage.removeItem('dam_user');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
       }
+    }
+
+    // Standard 401 handling for invalid credentials / unauthenticated access
+    if (error.response?.status === 401 && window.location.pathname !== '/login') {
+      localStorage.removeItem('dam_user');
+      window.location.href = '/login';
     }
 
     if (error.response?.data) {

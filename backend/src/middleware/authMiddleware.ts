@@ -27,11 +27,17 @@ declare global {
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   let token: string | undefined;
 
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
-  } else if (req.query.token && typeof req.query.token === 'string') {
-    token = req.query.token;
+  // 1. Check HttpOnly cookie first
+  if (req.cookies?.dam_token) {
+    token = req.cookies.dam_token;
+  } else {
+    // 2. Fallback to Authorization Header / query param
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.query.token && typeof req.query.token === 'string') {
+      token = req.query.token;
+    }
   }
 
   if (!token) {
@@ -49,11 +55,20 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     req.user = decoded;
     next();
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      sendError(
+        res,
+        'Unauthorized: Access token has expired',
+        HttpStatus.UNAUTHORIZED,
+        'TOKEN_EXPIRED'
+      );
+      return;
+    }
     sendError(
       res,
-      'Unauthorized: Invalid or expired access token',
+      'Unauthorized: Invalid or tampered access token',
       HttpStatus.UNAUTHORIZED,
-      'UNAUTHORIZED'
+      'INVALID_TOKEN'
     );
     return;
   }

@@ -19,33 +19,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize auth state from localStorage on mount
+  // Initialize auth state from HttpOnly cookie session on mount
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('dam_token');
       const storedUser = localStorage.getItem('dam_user');
-
-      if (storedToken && storedUser) {
+      if (storedUser) {
         try {
-          setToken(storedToken);
           setUser(JSON.parse(storedUser));
-
-          // Verify profile with backend API endpoint /auth/me
-          const res = await api.get('/auth/me');
-          const profileUser = res.data?.data?.user || res.data?.user;
-          if (profileUser) {
-            setUser(profileUser);
-            localStorage.setItem('dam_user', JSON.stringify(profileUser));
-          }
-        } catch (err: any) {
-          console.error('Session validation check:', err?.response?.status || err.message);
-          // Only log out if backend explicitly rejects JWT token with 401 Unauthorized
-          if (err.response?.status === 401) {
-            logout();
-          }
+        } catch {
+          localStorage.removeItem('dam_user');
         }
       }
-      setIsLoading(false);
+
+      try {
+        // Verify profile session with backend via HttpOnly cookie
+        const res = await api.get('/auth/me');
+        const profileUser = res.data?.data?.user || res.data?.user;
+        if (profileUser) {
+          setUser(profileUser);
+          localStorage.setItem('dam_user', JSON.stringify(profileUser));
+        }
+      } catch (err: any) {
+        if (err.response?.status === 401) {
+          setUser(null);
+          localStorage.removeItem('dam_user');
+        }
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     initializeAuth();
@@ -56,9 +57,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const payload = res.data?.data || res.data;
     const { token: newToken, user: newUser } = payload;
 
-    setToken(newToken);
+    setToken(newToken || 'cookie');
     setUser(newUser);
-    localStorage.setItem('dam_token', newToken);
     localStorage.setItem('dam_user', JSON.stringify(newUser));
     return newUser;
   };
@@ -68,26 +68,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const payload = res.data?.data || res.data;
     const { token: newToken, user: newUser } = payload;
 
-    setToken(newToken);
+    setToken(newToken || 'cookie');
     setUser(newUser);
-    localStorage.setItem('dam_token', newToken);
     localStorage.setItem('dam_user', JSON.stringify(newUser));
     return newUser;
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('dam_token');
-    localStorage.removeItem('dam_user');
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.warn('Logout notice:', err);
+    } finally {
+      setToken(null);
+      setUser(null);
+      localStorage.removeItem('dam_token');
+      localStorage.removeItem('dam_user');
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        token,
-        isAuthenticated: !!token && !!user,
+        token: token || (user ? 'cookie' : null),
+        isAuthenticated: !!user,
         isLoading,
         login,
         register,
