@@ -51,6 +51,7 @@ model Asset {
   transcodedSdUrl    String?
   transcoded720pUrl  String?
   transcoded1080pUrl String?
+  checksum           String?
   status             AssetStatus @default(PENDING_UPLOAD)
   errorMessage       String?
   downloadCount      Int         @default(0)

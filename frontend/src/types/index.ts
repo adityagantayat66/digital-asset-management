@@ -17,6 +17,16 @@ export interface Tag {
   name: string;
 }
 
+export const AssetStatus = {
+  PENDING_UPLOAD: 'PENDING_UPLOAD',
+  QUEUED: 'QUEUED',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+} as const;
+
+export type AssetStatus = (typeof AssetStatus)[keyof typeof AssetStatus];
+
 export interface Asset {
   id: string;
   originalName: string;
@@ -27,7 +37,8 @@ export interface Asset {
   transcodedSdUrl: string | null;
   transcoded720pUrl: string | null;
   transcoded1080pUrl: string | null;
-  status: 'PENDING_UPLOAD' | 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  checksum?: string | null;
+  status: AssetStatus;
   errorMessage?: string | null;
   downloadCount: number;
   createdAt: string;
@@ -51,7 +62,7 @@ export interface SSEProgressPayload {
   type?: 'CONNECTED';
   assetId: string;
   progress?: number;
-  status?: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status?: AssetStatus;
   stage?: string;
   error?: string;
   updatedAt?: string;

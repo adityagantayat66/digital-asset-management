@@ -1,7 +1,7 @@
-import { Asset } from '@prisma/client';
-import { prisma } from '../services/prisma';
-import { connectRabbitMQ, publishProcessingJob, QUEUE_ASSET_PROCESSING } from '../services/rabbitmq';
-import { redisClient } from '../services/redis';
+import { Asset, AssetStatus } from '@prisma/client';
+import { prisma } from '../../services/prisma';
+import { connectRabbitMQ, publishProcessingJob, QUEUE_ASSET_PROCESSING } from '../../services/rabbitmq';
+import { redisClient } from '../../services/redis';
 import {
   AdminMetricsData,
   QueueMetricsData,
@@ -10,9 +10,9 @@ import {
   DownloadAndMemoryStatsData,
   RequeueAssetResult,
   DeleteAssetResult,
-} from '../utils/models';
-import { deleteS3Object } from '../services/minio';
-import { env } from '../config/env';
+} from './admin.models';
+import { deleteS3Object } from '../../services/minio';
+import { env } from '../../config/env';
 
 export async function getAdminMetrics(): Promise<AdminMetricsData | null> {
   const [totalAssets, totalStorageBytes] = await Promise.all([
@@ -39,10 +39,10 @@ export async function getQueueMetrics(): Promise<QueueMetricsData> {
     await Promise.all([
       channel.checkQueue(QUEUE_ASSET_PROCESSING),
       channel.checkQueue(`${QUEUE_ASSET_PROCESSING}_dead_letters`),
-      prisma.asset.count({ where: { status: 'PROCESSING' } }),
+      prisma.asset.count({ where: { status: AssetStatus.PROCESSING } }),
       redisClient.keys('lock:job:*'),
       redisClient.keys('worker:heartbeat:*'),
-      prisma.asset.count({ where: { status: 'FAILED' } }),
+      prisma.asset.count({ where: { status: AssetStatus.FAILED } }),
       redisClient.get('cron:last_executed'),
     ]);
   const nodes = await Promise.all(
@@ -97,10 +97,10 @@ export async function syncDlqToDb(): Promise<DlqSyncResult> {
         const result = await prisma.asset.updateMany({
           where: {
             id: targetAssetId,
-            status: { in: ['PENDING_UPLOAD', 'QUEUED', 'PROCESSING'] },
+            status: { in: [AssetStatus.PENDING_UPLOAD, AssetStatus.QUEUED, AssetStatus.PROCESSING] },
           },
           data: {
-            status: 'FAILED',
+            status: AssetStatus.FAILED,
             errorMessage: 'Dead Lettered: Unacknowledged worker crash or system termination',
           },
         });
@@ -174,7 +174,7 @@ export async function getDownloadAndMemoryStats(): Promise<DownloadAndMemoryStat
 
 export async function getFailedAssetsFromDB(): Promise<Asset[]> {
   return await prisma.asset.findMany({
-    where: { status: 'FAILED' },
+    where: { status: AssetStatus.FAILED },
     orderBy: { updatedAt: 'desc' },
     include: { uploader: { select: { id: true, name: true, email: true } } },
   });
@@ -190,7 +190,7 @@ export async function requeueFailedAsset(assetId: string): Promise<RequeueAssetR
   await prisma.asset.update({
     where: { id: assetId },
     data: {
-      status: 'QUEUED',
+      status: AssetStatus.QUEUED,
       errorMessage: null,
     },
   });

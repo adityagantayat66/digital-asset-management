@@ -1,9 +1,17 @@
 import { Router } from 'express';
-import { getWorkerHealthMetrics, getInfraMetrics, purgeDeadLetters, syncDlq, getTopStats, getFailedAssets, retryFailedAssets, discardFailedAssets } from '../controllers/adminController';
+import {
+  getWorkerHealthMetrics,
+  getInfraMetrics,
+  purgeDeadLetters,
+  syncDlq,
+  getTopStats,
+  getFailedAssets,
+  retryFailedAssets,
+  discardFailedAssets,
+} from './admin.controller';
 
 const router = Router();
 
-// Public Authentication Endpoints
 router.get('/health-metrics', getWorkerHealthMetrics);
 router.get('/infra-metrics', getInfraMetrics);
 router.get('/sync-dlq', syncDlq);

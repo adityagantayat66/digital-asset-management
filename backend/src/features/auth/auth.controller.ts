@@ -2,17 +2,18 @@ import { Request, Response } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import { registerUser, loginUser, getUserProfile } from '../api-services/authService';
-import { HttpStatus, getHttpStatusName } from '../utils/httpStatus';
-import { sendSuccess, sendError } from '../utils/apiResponse';
-import { env } from '../config/env';
-import { saveRefreshToken, getRefreshTokenPayload, deleteRefreshToken } from '../services/redis';
+import { registerUser, loginUser, getUserProfile } from './auth.service';
+import { HttpStatus, getHttpStatusName } from '../../utils/httpStatus';
+import { sendSuccess, sendError } from '../../utils/apiResponse';
+import { env } from '../../config/env';
+import { saveRefreshToken, getRefreshTokenPayload, deleteRefreshToken } from '../../services/redis';
 
 // Validation Schemas using Zod
 const registerSchema = z.object({
   email: z.string().email('Invalid email address format'),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   name: z.string().min(2, 'Name must be at least 2 characters long'),
+  role: z.enum(['USER', 'ADMIN']).optional(),
 });
 
 const loginSchema = z.object({

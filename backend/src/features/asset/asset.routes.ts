@@ -6,7 +6,7 @@ import {
   listAssets,
   getAssetById,
   downloadAsset,
-} from '../controllers/assetController';
+} from './asset.controller';
 
 const router = Router();
 

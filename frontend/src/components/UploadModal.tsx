@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Upload, X, Tag as TagIcon, CheckCircle2, AlertCircle, Loader2, FileVideo, FileImage, FileText, File as FileIcon } from 'lucide-react';
+import { Upload, X, Tag as TagIcon, CheckCircle2, AlertCircle, Loader2, FileVideo, FileImage, FileText, File as FileIcon, Zap } from 'lucide-react';
 import { assetService } from '../services/assetService';
-import type { SSEProgressPayload } from '../types';
+import { AssetStatus, type SSEProgressPayload } from '../types';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -20,8 +20,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   const [uploadPercent, setUploadPercent] = useState(0);
   const [sseProgress, setSseProgress] = useState<SSEProgressPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDuplicate, setIsDuplicate] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sseCleanupRef = useRef<(() => void) | null>(null);
 
   if (!isOpen) return null;
 
@@ -54,6 +56,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     setStep('UPLOADING_S3');
     setUploadPercent(0);
     setErrorMessage(null);
+    setIsDuplicate(false);
 
     try {
       // 1. Request presigned URL from API Gateway
@@ -64,29 +67,38 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         tags
       );
 
-      // 2. Direct binary PUT upload to MinIO S3
-      await assetService.uploadToMinIO(presignedData.uploadUrl, file, (percent) => {
+      // 2. Direct binary PUT upload to MinIO S3 & extract ETag checksum
+      const etag = await assetService.uploadToMinIO(presignedData.uploadUrl, file, (percent) => {
         setUploadPercent(percent);
       });
 
-      // 3. Connect to SSE Live Progress Stream before completing upload
-      setStep('PROCESSING_SSE');
-      assetService.connectSSEProgress(presignedData.id, (payload) => {
-        setSseProgress(payload);
-        if (payload.status === 'COMPLETED') {
-          setStep('COMPLETED');
-          setTimeout(() => {
-            onUploadComplete();
-            handleClose();
-          }, 1500);
-        } else if (payload.status === 'FAILED') {
-          setStep('ERROR');
-          setErrorMessage(payload.error || 'Video processing failed in background worker');
-        }
-      });
+      // 3. Confirm upload completion to API Gateway (passing checksum for deduplication check)
+      const completeRes = await assetService.completeUpload(presignedData.id, etag);
 
-      // 4. Confirm upload completion to API Gateway & trigger RabbitMQ task
-      await assetService.completeUpload(presignedData.id);
+      if (completeRes.isDuplicate || completeRes.status === AssetStatus.COMPLETED) {
+        setIsDuplicate(true);
+        setStep('COMPLETED');
+        setTimeout(() => {
+          onUploadComplete();
+          handleClose();
+        }, 2200);
+      } else {
+        // 4. Connect to SSE Live Progress Stream for worker background processing
+        setStep('PROCESSING_SSE');
+        sseCleanupRef.current = assetService.connectSSEProgress(presignedData.id, (payload) => {
+          setSseProgress(payload);
+          if (payload.status === AssetStatus.COMPLETED) {
+            setStep('COMPLETED');
+            setTimeout(() => {
+              onUploadComplete();
+              handleClose();
+            }, 1500);
+          } else if (payload.status === AssetStatus.FAILED) {
+            setStep('ERROR');
+            setErrorMessage(payload.error || 'Video processing failed in background worker');
+          }
+        });
+      }
 
     } catch (err: any) {
       console.error('Upload Error:', err);
@@ -98,6 +110,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
   };
 
   const handleClose = () => {
+    if (sseCleanupRef.current) {
+      sseCleanupRef.current();
+      sseCleanupRef.current = null;
+    }
     setFile(null);
     setTags([]);
     setTagInput('');
@@ -105,6 +121,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
     setUploadPercent(0);
     setSseProgress(null);
     setErrorMessage(null);
+    setIsDuplicate(false);
     onClose();
   };
 
@@ -284,11 +301,24 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onUpl
         {/* Step: COMPLETED */}
         {step === 'COMPLETED' && (
           <div className="py-8 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-            <h4 className="text-xl font-bold text-white">Upload & Transcode Complete!</h4>
-            <p className="text-xs text-slate-400">Asset is processed and live in your gallery</p>
+            {isDuplicate ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20 animate-pulse">
+                  <Zap className="w-10 h-10" />
+                </div>
+                <h4 className="text-xl font-bold text-white">Identical Asset Detected!</h4>
+                <p className="text-sm font-semibold text-amber-300">The same video/image already exists in storage. Processed instantly!</p>
+                <p className="text-xs text-slate-400">Worker transcoding skipped & media reused from previous upload.</p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                  <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <h4 className="text-xl font-bold text-white">Upload & Transcode Complete!</h4>
+                <p className="text-xs text-slate-400">Asset is processed and live in your gallery</p>
+              </>
+            )}
           </div>
         )}
 

@@ -1,17 +1,18 @@
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../services/prisma';
-import { generatePresignedUploadUrl, generatePresignedDownloadUrl, getPublicAssetUrl } from '../services/minio';
-import { publishProcessingJob } from '../services/rabbitmq';
-import { redisClient } from '../services/redis';
-import { env } from '../config/env';
-import { HttpStatus } from '../utils/httpStatus';
+import { AssetStatus } from '@prisma/client';
+import { prisma } from '../../services/prisma';
+import { generatePresignedUploadUrl, generatePresignedDownloadUrl, getPublicAssetUrl } from '../../services/minio';
+import { publishProcessingJob } from '../../services/rabbitmq';
+import { redisClient } from '../../services/redis';
+import { env } from '../../config/env';
+import { HttpStatus } from '../../utils/httpStatus';
 import {
   PresignedUrlResult,
   ConfirmUploadResult,
   GalleryAssetsResult,
   AssetDetailsResult,
   AssetDownloadResult,
-} from '../utils/models';
+} from './asset.models';
 
 export interface RequestPresignedUrlOptions {
   filename: string;
@@ -23,6 +24,7 @@ export interface RequestPresignedUrlOptions {
 
 export interface ConfirmUploadOptions {
   assetId: string;
+  checksum?: string;
   userId: string;
   userRole?: string;
 }
@@ -49,7 +51,7 @@ export async function generateAssetPresignedUrl(options: RequestPresignedUrlOpti
       mimeType,
       size,
       uploaderId: userId,
-      status: 'PENDING_UPLOAD',
+      status: AssetStatus.PENDING_UPLOAD,
       rawPath,
       tags: {
         create: await Promise.all(
@@ -70,7 +72,7 @@ export async function generateAssetPresignedUrl(options: RequestPresignedUrlOpti
 }
 
 export async function confirmUpload(options: ConfirmUploadOptions): Promise<ConfirmUploadResult> {
-  const { assetId, userId, userRole } = options;
+  const { assetId, checksum, userId, userRole } = options;
 
   // 1. Fetch asset from PostgreSQL and verify ownership
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
@@ -86,20 +88,70 @@ export async function confirmUpload(options: ConfirmUploadOptions): Promise<Conf
     throw error;
   }
 
-  // 2. Initialize progress state in Redis
+  // 2. Check if an identical asset with matching checksum has already been processed
+  if (checksum) {
+    const existingAsset = await prisma.asset.findFirst({
+      where: {
+        checksum,
+        status: AssetStatus.COMPLETED,
+        id: { not: assetId },
+      },
+    });
+
+    if (existingAsset) {
+      console.log(`⚡ Instant Deduplication Hit for Asset "${assetId}" matching ETag "${checksum}"`);
+      const deduplicatedAsset = await prisma.asset.update({
+        where: { id: asset.id },
+        data: {
+          checksum,
+          status: AssetStatus.COMPLETED,
+          thumbnailUrl: existingAsset.thumbnailUrl,
+          transcodedSdUrl: existingAsset.transcodedSdUrl,
+          transcoded720pUrl: existingAsset.transcoded720pUrl,
+          transcoded1080pUrl: existingAsset.transcoded1080pUrl,
+        },
+      });
+
+      // Update Redis hash to COMPLETED so SSE listeners close cleanly
+      await redisClient.hset(`job:${asset.id}:progress`, {
+        progress: '100',
+        status: AssetStatus.COMPLETED,
+        stage: 'deduplicated',
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Invalidate gallery query caches in Redis
+      const cacheKeys = await redisClient.keys('cache:gallery:*');
+      if (cacheKeys.length > 0) {
+        await redisClient.del(...cacheKeys);
+      }
+
+      return {
+        message: 'The same video/image already exists. Processed instantly!',
+        assetId: deduplicatedAsset.id,
+        status: deduplicatedAsset.status,
+        isDuplicate: true,
+      };
+    }
+  }
+
+  // 3. Initialize progress state in Redis
   await redisClient.hset(`job:${asset.id}:progress`, {
     progress: '0',
-    status: 'QUEUED',
+    status: AssetStatus.QUEUED,
     updatedAt: new Date().toISOString(),
   });
 
-  // 3. Update DB asset status to QUEUED
+  // 4. Update DB asset status to QUEUED and save checksum
   const updatedAsset = await prisma.asset.update({
     where: { id: asset.id },
-    data: { status: 'QUEUED' },
+    data: {
+      status: AssetStatus.QUEUED,
+      ...(checksum ? { checksum } : {}),
+    },
   });
 
-  // 4. Enqueue task payload to RabbitMQ worker queue
+  // 5. Enqueue task payload to RabbitMQ worker queue
   await publishProcessingJob({
     assetId: updatedAsset.id,
     rawPath: updatedAsset.rawPath,
@@ -107,7 +159,7 @@ export async function confirmUpload(options: ConfirmUploadOptions): Promise<Conf
     mimeType: updatedAsset.mimeType,
   });
 
-  // 5. Invalidate gallery query caches in Redis
+  // 6. Invalidate gallery query caches in Redis
   const cacheKeys = await redisClient.keys('cache:gallery:*');
   if (cacheKeys.length > 0) {
     await redisClient.del(...cacheKeys);
@@ -117,6 +169,7 @@ export async function confirmUpload(options: ConfirmUploadOptions): Promise<Conf
     message: 'Upload complete. Processing task enqueued successfully.',
     assetId: updatedAsset.id,
     status: updatedAsset.status,
+    isDuplicate: false,
   };
 }
 

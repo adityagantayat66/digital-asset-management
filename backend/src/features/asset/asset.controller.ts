@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AssetStatus } from '@prisma/client';
 import { z } from 'zod';
 import {
   generateAssetPresignedUrl,
@@ -6,11 +7,11 @@ import {
   getGalleryAssets,
   getAssetDetails,
   processAssetDownload,
-} from '../api-services/assetService';
-import { redisClient, redisSubscriber } from '../services/redis';
-import { HttpStatus } from '../utils/httpStatus';
-import { sendSuccess, sendError } from '../utils/apiResponse';
-import { LoggerService } from '../services/logger';
+} from './asset.service';
+import { redisClient, redisSubscriber } from '../../services/redis';
+import { HttpStatus } from '../../utils/httpStatus';
+import { sendSuccess, sendError } from '../../utils/apiResponse';
+import { LoggerService } from '../../services/logger';
 
 // Validation Schemas using Zod
 const presignedUrlSchema = z.object({
@@ -22,6 +23,7 @@ const presignedUrlSchema = z.object({
 
 const completeUploadSchema = z.object({
   assetId: z.string().uuid('Invalid Asset ID format'),
+  checksum: z.string().optional(),
 });
 
 /**
@@ -77,7 +79,7 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
 /**
  * @Endpoint /api/assets/complete-upload
  * @Method POST
- * @Description Confirms direct upload completion, updates DB status to QUEUED, and enqueues RabbitMQ task.
+ * @Description Confirms direct upload completion, updates DB status to QUEUED (or COMPLETED if deduplicated), and enqueues RabbitMQ task.
  * @Auth Required
  * @Role USER, ADMIN
  */
@@ -97,15 +99,17 @@ export async function completeUpload(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const { assetId } = parseResult.data;
+    const { assetId, checksum } = parseResult.data;
 
     const result = await confirmUpload({
       assetId,
+      checksum,
       userId: req.user.userId,
       userRole: req.user.role,
     });
 
-    sendSuccess(res, result, result.message, HttpStatus.ACCEPTED);
+    const status = result.isDuplicate ? HttpStatus.OK : HttpStatus.ACCEPTED;
+    sendSuccess(res, result, result.message, status);
   } catch (error: any) {
     console.error(`❌ [${FUNCTION_NAME}] Failed to acknowledge upload completion:`, error);
     if (error.statusCode) {
@@ -149,15 +153,22 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
   try {
     const currentProgress = await redisClient.hgetall(`job:${id}:progress`);
     if (currentProgress && Object.keys(currentProgress).length > 0) {
+      const currentStatus = (currentProgress.status as AssetStatus) || AssetStatus.QUEUED;
       res.write(
         `data: ${JSON.stringify({
           assetId: id,
           progress: Number(currentProgress.progress || 0),
-          status: currentProgress.status || 'QUEUED',
+          status: currentStatus,
           stage: currentProgress.stage || '',
           updatedAt: currentProgress.updatedAt || new Date().toISOString(),
         })}\n\n`
       );
+
+      // If job has ALREADY reached a terminal state (COMPLETED/FAILED), close stream immediately
+      if (currentStatus === AssetStatus.COMPLETED || currentStatus === AssetStatus.FAILED) {
+        res.end();
+        return;
+      }
     }
   } catch (err) {
     console.error(`Failed to read initial progress hash for job:${id}:progress`, err);
@@ -171,7 +182,7 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
       // Automatically close stream when job reaches terminal state
       try {
         const parsed = JSON.parse(message);
-        if (parsed.status === 'COMPLETED' || parsed.status === 'FAILED') {
+        if (parsed.status === AssetStatus.COMPLETED || parsed.status === AssetStatus.FAILED) {
           cleanup();
           res.end();
         }

@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { Asset, AssetsListResponse, PresignedUrlResponse, SSEProgressPayload } from '../types';
+import { AssetStatus, type Asset, type AssetsListResponse, type PresignedUrlResponse, type SSEProgressPayload } from '../types';
 
 export interface ListAssetsParams {
   page?: number;
@@ -42,7 +42,7 @@ export const assetService = {
   /**
    * Step 2: Directly upload raw file bytes to MinIO S3 Presigned URL
    */
-  async uploadToMinIO(uploadUrl: string, file: File, onProgress?: (percent: number) => void): Promise<void> {
+  async uploadToMinIO(uploadUrl: string, file: File, onProgress?: (percent: number) => void): Promise<string | undefined> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl, true);
@@ -59,7 +59,9 @@ export const assetService = {
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
+          const rawEtag = xhr.getResponseHeader('ETag') || xhr.getResponseHeader('etag');
+          const etag = rawEtag ? rawEtag.replace(/"/g, '') : undefined;
+          resolve(etag);
         } else {
           reject(new Error(`MinIO upload failed with status ${xhr.status}`));
         }
@@ -73,8 +75,8 @@ export const assetService = {
   /**
    * Step 3: Confirm upload completion and publish job to RabbitMQ queue
    */
-  async completeUpload(assetId: string): Promise<{ message: string; status: string }> {
-    const res = await api.post('/assets/complete-upload', { assetId });
+  async completeUpload(assetId: string, checksum?: string): Promise<{ message: string; status: AssetStatus; isDuplicate?: boolean }> {
+    const res = await api.post('/assets/complete-upload', { assetId, checksum });
     return (res.data as any).data || res.data;
   },
 
@@ -90,7 +92,7 @@ export const assetService = {
       try {
         const payload: SSEProgressPayload = JSON.parse(event.data);
         onEvent(payload);
-        if (payload.status === 'COMPLETED' || payload.status === 'FAILED') {
+        if (payload.status === AssetStatus.COMPLETED || payload.status === AssetStatus.FAILED) {
           eventSource.close();
         }
       } catch (err) {

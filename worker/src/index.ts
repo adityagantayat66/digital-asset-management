@@ -1,4 +1,5 @@
 import * as amqp from 'amqplib';
+import { AssetStatus } from '@prisma/client';
 import * as fs from 'fs';
 import z from 'zod';
 import path from 'path';
@@ -63,11 +64,11 @@ async function startWorker() {
             const tempDir = path.join(process.cwd(), 'temp', assetId);
             const tempFilePath = path.join(tempDir, originalName);
             try {
-                const progressMsg = { assetId, progress: 0, status: 'PROCESSING' as const, stage: 'STARTED', error: '' }
+                const progressMsg = { assetId, progress: 0, status: AssetStatus.PROCESSING, stage: 'STARTED', error: '' }
                 await publishJobProgress(progressMsg)
                 await downloadRawAssets(rawPath, tempFilePath)
                 if (mimeType.startsWith('image/')) {
-                    await publishJobProgress({ ...progressMsg, status: 'PROCESSING', progress: 50 });
+                    await publishJobProgress({ ...progressMsg, status: AssetStatus.PROCESSING, progress: 50 });
 
                     const { thumbnailPath, metadata } = await generateImageThumbnail(tempFilePath, tempDir);
                     console.log('Thumbnail Generated: ', thumbnailPath);
@@ -76,8 +77,8 @@ async function startWorker() {
                     }
                     const thumbnailUrl = await uploadProcessedAsset(`thumbnails/${assetId}.jpg`, thumbnailPath);
                     console.log(thumbnailUrl)
-                    await publishJobProgress({ ...progressMsg, status: 'COMPLETED', progress: 100 });
-                    await prisma.asset.update({ where: { id: assetId }, data: { status: 'COMPLETED', thumbnailUrl } })
+                    await publishJobProgress({ ...progressMsg, status: AssetStatus.COMPLETED, progress: 100 });
+                    await prisma.asset.update({ where: { id: assetId }, data: { status: AssetStatus.COMPLETED, thumbnailUrl } })
                 }
                 else if (mimeType.startsWith('video/')) {
                     // TODO implement video processing
@@ -101,7 +102,7 @@ async function startWorker() {
                     await publishJobProgress({
                         assetId,
                         progress: 100,
-                        status: 'COMPLETED',
+                        status: AssetStatus.COMPLETED,
                         stage: 'COMPLETED',
                         error: ''
                     });
@@ -109,7 +110,7 @@ async function startWorker() {
                     await prisma.asset.update({
                         where: { id: assetId },
                         data: {
-                            status: 'COMPLETED',
+                            status: AssetStatus.COMPLETED,
                             thumbnailUrl,
                             transcodedSdUrl,
                             transcoded720pUrl,
@@ -137,8 +138,8 @@ async function startWorker() {
                     details: { assetId },
                 });
                 console.error(`❌ Processing failed for asset ${assetId}:`, error);
-                await publishJobProgress({ assetId, progress: 0, status: 'FAILED', stage: 'FAILED', error: error.message })
-                await prisma.asset.update({ where: { id: assetId }, data: { status: 'FAILED', errorMessage: error.message || 'Unknown processing error', } });
+                await publishJobProgress({ assetId, progress: 0, status: AssetStatus.FAILED, stage: 'FAILED', error: error.message })
+                await prisma.asset.update({ where: { id: assetId }, data: { status: AssetStatus.FAILED, errorMessage: error.message || 'Unknown processing error', } });
                 channel.nack(msg, false, false);
             } finally {
                 // Remove temporary staging directory

@@ -8,9 +8,9 @@ import {
   purgeDlq,
   requeueFailedAsset,
   syncDlqToDb,
-} from '../api-services/adminService';
-import { HttpStatus } from '../utils/httpStatus';
-import { sendSuccess, sendError } from '../utils/apiResponse';
+} from './admin.service';
+import { HttpStatus } from '../../utils/httpStatus';
+import { sendSuccess, sendError } from '../../utils/apiResponse';
 
 export async function getInfraMetrics(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.getInfraMetrics';

@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { AssetStatus } from '@prisma/client';
 import { env } from '../config/env';
 import { LoggerService } from './logger';
 
@@ -35,7 +36,7 @@ redisPublisher.on('error', (err) => {
 export interface JobProgressPayload {
     assetId: string;
     progress: number; // 0 to 100
-    status: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+    status: AssetStatus;
     stage?: string;
     error?: string;
 }

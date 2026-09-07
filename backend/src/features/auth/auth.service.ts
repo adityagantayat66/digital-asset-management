@@ -1,23 +1,13 @@
+import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../services/prisma';
-import { env } from '../config/env';
-import { HttpStatus } from '../utils/httpStatus';
-import { AuthUserResult, UserProfileData } from '../utils/models';
-
-export interface RegisterUserData {
-  email: string;
-  password: string;
-  name: string;
-}
-
-export interface LoginUserData {
-  email: string;
-  password: string;
-}
+import { prisma } from '../../services/prisma';
+import { env } from '../../config/env';
+import { HttpStatus } from '../../utils/httpStatus';
+import { AuthUserResult, UserProfileData, RegisterUserData, LoginUserData } from './auth.models';
 
 export async function registerUser(data: RegisterUserData): Promise<AuthUserResult> {
-  const { email, password, name } = data;
+  const { email, password, name, role } = data;
 
   // 1. Check if user already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -36,7 +26,7 @@ export async function registerUser(data: RegisterUserData): Promise<AuthUserResu
       email,
       passwordHash,
       name,
-      role: 'USER',
+      role: role || Role.USER,
     },
   });
 
