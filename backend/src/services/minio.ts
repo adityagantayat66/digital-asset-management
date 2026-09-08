@@ -22,9 +22,9 @@ export const internalS3Client = new S3Client({
   forcePathStyle: true,
 });
 
-// 2. Client for generating browser-facing presigned URLs (http://localhost:9000)
+// 2. Client for generating browser-facing presigned URLs (e.g. http://localhost:9000)
 export const presignedS3Client = new S3Client({
-  endpoint: `http://localhost:${env.MINIO_PORT}`,
+  endpoint: env.MINIO_PUBLIC_ENDPOINT,
   region: 'us-east-1',
   credentials: {
     accessKeyId: env.MINIO_ROOT_USER,
@@ -58,14 +58,9 @@ export async function ensureMinioBucketsExist(): Promise<void> {
         CORSConfiguration: {
           CORSRules: [
             {
-              AllowedHeaders: ['*'],
+              AllowedHeaders: ['Content-Type', 'Authorization', 'x-amz-*', 'x-requested-with', 'accept', 'origin'],
               AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE', 'HEAD'],
-              AllowedOrigins: [
-                'http://localhost:3000',
-                'http://localhost:8080',
-                'http://127.0.0.1:3000',
-                'http://127.0.0.1:8080',
-              ],
+              AllowedOrigins: env.FRONTEND_URLS,
               ExposeHeaders: ['ETag'],
             },
           ],
@@ -140,10 +135,10 @@ export function getPublicAssetUrl(bucket: string, fileKey: string): string {
   if (!fileKey) return '';
   if (fileKey.startsWith('http')) {
     return fileKey
-      .replace(`http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`, `http://localhost:${env.MINIO_PORT}`)
-      .replace('http://minio:9000', `http://localhost:${env.MINIO_PORT}`);
+      .replace(`http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`, env.MINIO_PUBLIC_ENDPOINT)
+      .replace('http://minio:9000', env.MINIO_PUBLIC_ENDPOINT);
   }
-  return `http://localhost:${env.MINIO_PORT}/${bucket}/${fileKey}`;
+  return `${env.MINIO_PUBLIC_ENDPOINT}/${bucket}/${fileKey}`;
 }
 
 /**

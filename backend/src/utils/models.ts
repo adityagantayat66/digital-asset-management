@@ -1,10 +1,11 @@
 export interface ErrorLogPayload {
   timestamp: string;
-  level: 'ERROR' | 'CRITICAL' | 'WARN';
+  level: ErrorLevel;
   functionName: string;
   message: string;
   code?: string;
   statusCode?: number;
+  correlationId?: string;
   requestContext?: {
     method: string;
     url: string;
@@ -14,4 +15,9 @@ export interface ErrorLogPayload {
   details?: any;
   stack?: string;
   origin: string;
+}
+export enum ErrorLevel {
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+  WARN = 'WARN',
 }

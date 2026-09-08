@@ -12,6 +12,7 @@ import { redisClient, redisSubscriber } from '../../services/redis';
 import { HttpStatus } from '../../utils/httpStatus';
 import { sendSuccess, sendError } from '../../utils/apiResponse';
 import { LoggerService } from '../../services/logger';
+import { ErrorLevel } from '../../utils/models';
 
 // Validation Schemas using Zod
 const presignedUrlSchema = z.object({
@@ -60,19 +61,12 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
     sendSuccess(res, result, 'Presigned URL generated successfully', HttpStatus.OK);
   } catch (error: any) {
     console.error(`❌ [${FUNCTION_NAME}] Failed to generate presigned upload URL:`, error);
-    if (error.statusCode) {
-      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'PRESIGNED_URL_ERROR', null,
-        FUNCTION_NAME,
-        true,
-        req,
-        error);
-      return;
-    }
     sendError(res, 'Failed to generate presigned upload URL', HttpStatus.INTERNAL_SERVER_ERROR, 'PRESIGNED_URL_FAILED', null,
       FUNCTION_NAME,
       true,
       req,
-      error);
+      error,
+      ErrorLevel.ERROR);
   }
 }
 
@@ -112,19 +106,12 @@ export async function completeUpload(req: Request, res: Response): Promise<void>
     sendSuccess(res, result, result.message, status);
   } catch (error: any) {
     console.error(`❌ [${FUNCTION_NAME}] Failed to acknowledge upload completion:`, error);
-    if (error.statusCode) {
-      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'FORBIDDEN', null,
-        FUNCTION_NAME,
-        true,
-        req,
-        error);
-      return;
-    }
     sendError(res, 'Failed to acknowledge upload completion', HttpStatus.INTERNAL_SERVER_ERROR, 'COMPLETE_UPLOAD_FAILED', null,
       FUNCTION_NAME,
       true,
       req,
-      error);
+      error,
+      ErrorLevel.ERROR);
   }
 }
 
@@ -241,19 +228,12 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
     sendSuccess(res, result, 'Gallery assets fetched successfully', HttpStatus.OK);
   } catch (error: any) {
     console.error(`❌ [${FUNCTION_NAME}] Failed to fetch gallery assets:`, error);
-    if (error.statusCode) {
-      sendError(res, error.message, error.statusCode, error.statusCode === HttpStatus.NOT_FOUND ? 'NOT_FOUND' : 'LIST_ASSETS_ERROR', null,
-        FUNCTION_NAME,
-        true,
-        req,
-        error);
-      return;
-    }
     sendError(res, 'Failed to fetch gallery assets', HttpStatus.INTERNAL_SERVER_ERROR, 'LIST_ASSETS_FAILED', null,
       FUNCTION_NAME,
       true,
       req,
       error,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -280,14 +260,16 @@ export async function getAssetById(req: Request, res: Response): Promise<void> {
         FUNCTION_NAME,
         true,
         req,
-        error);
+        error,
+        ErrorLevel.ERROR);
       return;
     }
     sendError(res, 'Failed to fetch asset metadata', HttpStatus.INTERNAL_SERVER_ERROR, 'GET_ASSET_FAILED', null,
       FUNCTION_NAME,
       true,
       req,
-      error);
+      error,
+      ErrorLevel.ERROR);
 
   }
 }
@@ -317,13 +299,15 @@ export async function downloadAsset(req: Request, res: Response): Promise<void> 
         FUNCTION_NAME,
         true,
         req,
-        error);
+        error,
+        ErrorLevel.ERROR);
       return;
     }
     sendError(res, 'Failed to process asset download request', HttpStatus.INTERNAL_SERVER_ERROR, 'DOWNLOAD_ASSET_FAILED', null,
       FUNCTION_NAME,
       true,
       req,
-      error);
+      error,
+      ErrorLevel.ERROR);
   }
 }

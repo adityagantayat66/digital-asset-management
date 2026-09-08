@@ -79,12 +79,14 @@ export async function publishProcessingJob(assetPayload: {
   rawPath: string;
   originalName: string;
   mimeType: string;
+  correlationId?: string;
 }): Promise<boolean> {
   const ch = await connectRabbitMQ();
   const messageBuffer = Buffer.from(JSON.stringify(assetPayload));
 
   return ch.sendToQueue(QUEUE_ASSET_PROCESSING, messageBuffer, {
     persistent: true, // Ensure task message is saved to disk
+    headers: assetPayload.correlationId ? { 'x-correlation-id': assetPayload.correlationId } : undefined,
   });
 }
 export async function publishErrorLog(logPayload: ErrorLogPayload): Promise<boolean> {

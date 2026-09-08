@@ -59,3 +59,33 @@ export interface RequeueAssetResult {
 export interface DeleteAssetResult {
   success: boolean;
 }
+
+export interface SystemLogItem {
+  id: string;
+  timestamp: Date | string;
+  level: string;
+  origin: string;
+  functionName: string;
+  message: string;
+  code?: string | null;
+  statusCode?: number | null;
+  correlationId?: string | null;
+  method?: string | null;
+  url?: string | null;
+  userId?: string | null;
+  ip?: string | null;
+  details?: any;
+  stack?: string | null;
+  createdAt: Date | string;
+}
+
+export interface SystemLogsResult {
+  logs: SystemLogItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+

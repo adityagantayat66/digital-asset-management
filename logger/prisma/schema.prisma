@@ -1,4 +1,4 @@
-// Prisma Schema for Digital Asset Management (DAM) Platform
+// Prisma Schema for Logger Microservice
 
 generator client {
   provider = "prisma-client-js"
@@ -8,13 +8,11 @@ datasource db {
   provider = "postgresql"
 }
 
-// 1. User Roles
 enum Role {
   USER
   ADMIN
 }
 
-// 2. Asset Processing Status Enum
 enum AssetStatus {
   PENDING_UPLOAD
   QUEUED
@@ -23,7 +21,6 @@ enum AssetStatus {
   FAILED
 }
 
-// 3. User Account Model
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -32,21 +29,17 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  // Relation: One User can upload many Assets
   assets       Asset[]
 
   @@map("users")
 }
 
-// 4. Main Asset Metadata Model
 model Asset {
   id                 String      @id @default(uuid())
   originalName       String
   mimeType           String
   size               Int
   rawPath            String
-  // Optional fields - populated after worker completes processing
   thumbnailUrl       String?
   transcodedSdUrl    String?
   transcoded720pUrl  String?
@@ -57,45 +50,37 @@ model Asset {
   downloadCount      Int         @default(0)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
-
-  // Uploader Relation: Links asset to its contributor
   uploaderId         String
   uploader           User        @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
-
   tags               AssetTag[]
 
   @@map("assets")
 }
 
-// 5. Taxonomy Tag Model
 model Tag {
   id        String     @id @default(uuid())
   name      String     @unique
   createdAt DateTime   @default(now())
-
   assets    AssetTag[]
 
   @@map("tags")
 }
 
-// 6. Many-to-Many Join Table (Asset <-> Tag)
 model AssetTag {
   assetId String
   tagId   String
-
-  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  asset   Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([assetId, tagId])
   @@map("asset_tags")
 }
 
-// 7. System Error & Activity Log Model
 model SystemLog {
   id            String   @id @default(uuid())
   timestamp     DateTime @default(now())
-  level         String   // ERROR, CRITICAL, WARN
-  origin        String   // API_GATEWAY, WORKER, SYSTEM
+  level         String
+  origin        String
   functionName  String
   message       String
   code          String?
@@ -115,4 +100,3 @@ model SystemLog {
   @@index([createdAt])
   @@map("system_logs")
 }
-

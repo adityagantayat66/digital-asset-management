@@ -40,6 +40,7 @@ async function startWorker() {
             if (!msg) {
                 return;
             }
+            const correlationId = (msg.properties.headers && msg.properties.headers['x-correlation-id']) || undefined;
             const result = JobPayloadSchema.safeParse(JSON.parse(msg.content.toString()));
             if (!result.success) {
                 console.error('❌ Failed to parse job payload:', result.error);
@@ -47,8 +48,9 @@ async function startWorker() {
                     level: 'CRITICAL',
                     functionName: 'Worker:Index',
                     message: JSON.stringify(result.error),
+                    correlationId,
                     details: result.error,
-                })
+                });
                 channel.nack(msg, false, false);
                 return;
             }
@@ -134,6 +136,7 @@ async function startWorker() {
                     level: 'CRITICAL',
                     functionName: 'Worker:Index',
                     message: typeof error === 'string' ? error : (error?.message || 'Processing failed'),
+                    correlationId,
                     stack: error?.stack,
                     details: { assetId },
                 });

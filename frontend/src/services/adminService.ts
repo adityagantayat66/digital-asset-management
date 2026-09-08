@@ -29,3 +29,14 @@ export async function discardFailedAssets(assetId: string) {
     const response = await api.delete(`/admin/discard-failed-assets/${assetId}`);
     return handleAndForwardAPIResponse(response);
 }
+
+export async function getSystemLogs(params?: {
+    page?: number;
+    limit?: number;
+    level?: string;
+    origin?: string;
+    search?: string;
+}) {
+    const response = await api.get('/admin/system-logs', { params });
+    return handleAndForwardAPIResponse(response);
+}

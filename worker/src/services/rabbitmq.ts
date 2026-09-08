@@ -7,6 +7,7 @@ export interface ErrorLogPayload {
     message: string;
     code?: string;
     statusCode?: number;
+    correlationId?: string;
     requestContext?: {
         method: string;
         url: string;

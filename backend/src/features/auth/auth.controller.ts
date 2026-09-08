@@ -7,6 +7,7 @@ import { HttpStatus, getHttpStatusName } from '../../utils/httpStatus';
 import { sendSuccess, sendError } from '../../utils/apiResponse';
 import { env } from '../../config/env';
 import { saveRefreshToken, getRefreshTokenPayload, deleteRefreshToken } from '../../services/redis';
+import { ErrorLevel } from '../../utils/models';
 
 // Validation Schemas using Zod
 const registerSchema = z.object({
@@ -102,7 +103,8 @@ export async function register(req: Request, res: Response): Promise<void> {
     console.error(`❌ [${FUNCTION_NAME}] Failed to register user for email ${req.body?.email}:`, error);
     if (error.statusCode) {
       const code = getHttpStatusName(error.statusCode, 'BAD_REQUEST');
-      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error);
+      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error,
+        ErrorLevel.ERROR);
       return;
     }
 
@@ -115,7 +117,8 @@ export async function register(req: Request, res: Response): Promise<void> {
       FUNCTION_NAME,
       true,
       req,
-      error
+      error,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -154,7 +157,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     if (error.statusCode) {
       const code = getHttpStatusName(error.statusCode, 'BAD_REQUEST');
-      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error);
+      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error, ErrorLevel.ERROR);
       return;
     }
     sendError(
@@ -166,7 +169,8 @@ export async function login(req: Request, res: Response): Promise<void> {
       FUNCTION_NAME,
       true,
       req,
-      error
+      error,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -281,7 +285,8 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
 
     if (error.statusCode) {
       const code = getHttpStatusName(error.statusCode, 'ERROR');
-      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error);
+      sendError(res, error.message, error.statusCode, code, null, FUNCTION_NAME, true, req, error,
+        ErrorLevel.ERROR);
       return;
     }
 
@@ -294,7 +299,8 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
       FUNCTION_NAME,
       true,
       req,
-      error
+      error,
+      ErrorLevel.ERROR
     );
   }
 }

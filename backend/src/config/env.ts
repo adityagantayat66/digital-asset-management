@@ -12,6 +12,10 @@ const envSchema = z.object({
 
   // HTTPS & Security Settings
   ENABLE_HTTPS: z.string().transform((val) => val === 'true').default('false'),
+  FRONTEND_URLS: z
+    .string()
+    .default('http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080')
+    .transform((val) => val.split(',').map((url) => url.trim()).filter(Boolean)),
 
   // JWT Authentication Settings
   JWT_SECRET: z.string().default('dam_super_secret_jwt_key_change_in_production'),
@@ -31,6 +35,7 @@ const envSchema = z.object({
   // MinIO S3 Storage Configuration
   MINIO_ENDPOINT: z.string().default('localhost'),
   MINIO_PORT: z.string().transform(Number).default('9000'),
+  MINIO_PUBLIC_ENDPOINT: z.string().default('http://localhost:9000'),
   MINIO_ROOT_USER: z.string().default('minioadmin'),
   MINIO_ROOT_PASSWORD: z.string().default('minioadmin'),
   MINIO_RAW_BUCKET: z.string().default('raw-assets'),

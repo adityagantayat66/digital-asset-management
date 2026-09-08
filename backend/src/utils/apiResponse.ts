@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { HttpStatus, HttpStatusCode } from './httpStatus';
 import { LoggerService } from '../services/logger';
+import { ErrorLevel } from './models';
 
 export interface ApiErrorDetail {
   code: string;
@@ -45,7 +46,8 @@ export function sendError(
   functionName: string = '',
   logError: boolean = false,
   req: Request | null = null,
-  error: Error | null = null
+  error: Error | null = null,
+  errorLevel: ErrorLevel = ErrorLevel.ERROR
 ): void {
   const responsePayload: ApiResponse<null> = {
     success: false,
@@ -60,15 +62,22 @@ export function sendError(
   res.status(statusCode).json(responsePayload);
   if (logError) {
     LoggerService.logError({
-      level: 'ERROR',
-      functionName: functionName,
+      level: errorLevel,
+      functionName: functionName || 'API_HANDLER',
       message: message,
-      requestContext: {
-        method: req?.method || '',
-        url: req?.url || '',
-        ip: req?.ip || '',
-      },
-      stack: error?.stack
+      code: code,
+      statusCode: statusCode,
+      correlationId: req?.correlationId,
+      requestContext: req
+        ? {
+          method: req.method || '',
+          url: req.originalUrl || req.url || '',
+          userId: req.user?.userId,
+          ip: req.ip || '',
+        }
+        : undefined,
+      details: details || undefined,
+      stack: error?.stack,
     });
   }
 }

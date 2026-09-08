@@ -5,12 +5,14 @@ import {
   getDownloadAndMemoryStats,
   getFailedAssetsFromDB,
   getQueueMetrics,
+  getSystemLogs,
   purgeDlq,
   requeueFailedAsset,
   syncDlqToDb,
 } from './admin.service';
 import { HttpStatus } from '../../utils/httpStatus';
 import { sendSuccess, sendError } from '../../utils/apiResponse';
+import { ErrorLevel } from '../../utils/models';
 
 export async function getInfraMetrics(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.getInfraMetrics';
@@ -29,7 +31,8 @@ export async function getInfraMetrics(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -51,7 +54,8 @@ export async function getWorkerHealthMetrics(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -73,7 +77,8 @@ export async function syncDlq(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -95,7 +100,8 @@ export async function purgeDeadLetters(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -117,7 +123,8 @@ export async function getTopStats(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -139,7 +146,8 @@ export async function getFailedAssets(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -165,7 +173,8 @@ export async function retryFailedAssets(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
@@ -191,7 +200,40 @@ export async function discardFailedAssets(req: Request, res: Response) {
       FUNCTION_NAME,
       true,
       req,
-      err
+      err,
+      ErrorLevel.ERROR
     );
   }
 }
+
+export async function fetchSystemLogs(req: Request, res: Response) {
+  const FUNCTION_NAME = 'adminController.fetchSystemLogs';
+  try {
+    const { page, limit, level, origin, search } = req.query;
+    const result = await getSystemLogs({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      level: level as string,
+      origin: origin as string,
+      search: search as string,
+    });
+
+    sendSuccess(res, result, 'System logs fetched successfully', HttpStatus.OK);
+  } catch (err: any) {
+    console.error(`❌ [${FUNCTION_NAME}] Error:`, err);
+    sendError(
+      res,
+      err instanceof Error ? err.message : 'Internal server error fetching system logs',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'FETCH_SYSTEM_LOGS_FAILED',
+      null,
+      FUNCTION_NAME,
+      true,
+      req,
+      err,
+      ErrorLevel.ERROR
+    );
+  }
+}
+
+

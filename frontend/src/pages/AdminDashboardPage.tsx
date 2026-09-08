@@ -4,6 +4,7 @@ import { AdminMetricsGrid } from '../components/admin/AdminMetricsGrid';
 import { WorkerHealthCard } from '../components/admin/WorkerHealthCard';
 import { TopAssetCards } from '../components/admin/TopAssetCards';
 import { FailedAssetsTable } from '../components/admin/FailedAssetsTable';
+import { SystemLogsTable } from '../components/admin/SystemLogsTable';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -108,6 +109,11 @@ export const AdminDashboardPage: React.FC = () => {
         {/* Section 4: System-Wide Failed Assets Audit Table */}
         <section aria-labelledby="failed-assets-heading">
           <FailedAssetsTable onActionSuccess={handleRefresh} />
+        </section>
+
+        {/* Section 5: System Observability Logs */}
+        <section aria-labelledby="system-logs-heading">
+          <SystemLogsTable />
         </section>
       </main>
     </div>

@@ -226,3 +226,56 @@ export async function deleteFailedAssets(assetId: string): Promise<DeleteAssetRe
     throw error;
   }
 }
+
+export async function getSystemLogs(params: {
+  page?: number;
+  limit?: number;
+  level?: string;
+  origin?: string;
+  search?: string;
+}) {
+  const page = Math.max(1, Number(params.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(params.limit) || 20));
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+
+  if (params.level && params.level.trim()) {
+    where.level = params.level.trim().toUpperCase();
+  }
+
+  if (params.origin && params.origin.trim()) {
+    where.origin = params.origin.trim().toUpperCase();
+  }
+
+  if (params.search && params.search.trim()) {
+    const query = params.search.trim();
+    where.OR = [
+      { message: { contains: query, mode: 'insensitive' } },
+      { correlationId: { contains: query, mode: 'insensitive' } },
+      { functionName: { contains: query, mode: 'insensitive' } },
+      { url: { contains: query, mode: 'insensitive' } },
+    ];
+  }
+
+  const [logs, total] = await Promise.all([
+    prisma.systemLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.systemLog.count({ where }),
+  ]);
+
+  return {
+    logs,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+

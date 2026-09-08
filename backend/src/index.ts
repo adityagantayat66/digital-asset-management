@@ -8,12 +8,16 @@ import assetRoutes from './features/asset/asset.routes';
 import adminRoutes from './features/admin/admin.routes';
 import { connectRabbitMQ } from './services/rabbitmq';
 import { authenticate, requireAdmin } from './middleware/authMiddleware';
+import { correlationMiddleware } from './middleware/correlationMiddleware';
 import { errorHandler } from './middleware/errorHandler';
 import { HttpStatus } from './utils/httpStatus';
 import { sendSuccess, sendError } from './utils/apiResponse';
 import { ensureMinioBucketsExist } from './services/minio';
 
 const app = express();
+
+// Mount Correlation ID middleware first to ensure all requests have X-Correlation-ID
+app.use(correlationMiddleware);
 
 // Enable Security Headers with Helmet
 app.use(
