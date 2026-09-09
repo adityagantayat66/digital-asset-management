@@ -42,8 +42,9 @@ export interface JobProgressPayload {
 }
 
 /**
- * Publishes real-time transcoding progress to Redis Pub/Sub channel
- * AND updates Redis Hash state `job:{id}:progress` for UI progress bar queries.
+ * @Description Publishes real-time transcoding progress to Redis Pub/Sub channel and updates Redis Hash state.
+ * @Params payload (JobProgressPayload) - Object containing assetId, progress percentage, status, stage, and error
+ * @Returns Promise<void>
  */
 export async function publishJobProgress(payload: JobProgressPayload): Promise<void> {
     const channel = `asset:progress:${payload.assetId}`;

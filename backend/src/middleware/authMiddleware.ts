@@ -21,8 +21,11 @@ declare global {
 }
 
 /**
- * Middleware: Verifies JWT Bearer Token in HTTP Authorization Header.
- * Example: Authorization: Bearer <jwt_token_string>
+ * @Description Verifies JWT Bearer Token in HTTP Authorization Header or HttpOnly cookie and attaches user context to Request.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ *         next (NextFunction) - Express next middleware function
+ * @Returns void
  */
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   let token: string | undefined;
@@ -75,7 +78,11 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 }
 
 /**
- * Middleware: Enforces Admin-only access.
+ * @Description Enforces Admin role access restriction on protected routes.
+ * @Params req (Request) - Express Request object containing authenticated user context
+ *         res (Response) - Express Response object
+ *         next (NextFunction) - Express next middleware function
+ * @Returns void
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user || req.user.role !== 'ADMIN') {

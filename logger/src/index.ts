@@ -49,6 +49,10 @@ const JobPayloadSchema = z.object({
 let amqpConnection: amqp.ChannelModel | null = null;
 let amqpChannel: amqp.Channel | null = null;
 
+/**
+ * @Description Initializes logger microservice, connects to RabbitMQ queue, and triggers retention cleanup schedule.
+ * @Returns Promise<void>
+ */
 async function startLoggerService(): Promise<void> {
   try {
     console.log(`🚀 DAM System Logger Microservice starting in [${env.NODE_ENV}] mode...`);

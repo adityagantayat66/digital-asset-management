@@ -31,6 +31,8 @@ const completeUploadSchema = z.object({
  * @Endpoint /api/assets/presigned-url
  * @Method POST
  * @Description Pre-registers an asset record in PostgreSQL with uploaderId and returns a direct MinIO presigned PUT URL.
+ * @Params req (Request) - Express Request object containing payload body
+ *         res (Response) - Express Response object
  * @Auth Required
  * @Role USER, ADMIN
  */
@@ -74,6 +76,8 @@ export async function requestPresignedUrl(req: Request, res: Response): Promise<
  * @Endpoint /api/assets/complete-upload
  * @Method POST
  * @Description Confirms direct upload completion, updates DB status to QUEUED (or COMPLETED if deduplicated), and enqueues RabbitMQ task.
+ * @Params req (Request) - Express Request object containing { assetId, checksum } in body
+ *         res (Response) - Express Response object
  * @Auth Required
  * @Role USER, ADMIN
  */
@@ -119,6 +123,8 @@ export async function completeUpload(req: Request, res: Response): Promise<void>
  * @Endpoint /api/assets/:id/progress/stream
  * @Method GET
  * @Description Establishes Server-Sent Events (SSE) stream subscribing to Redis Pub/Sub progress events.
+ * @Params req (Request) - Express Request object containing asset id in params
+ *         res (Response) - Express Response object
  * @Auth Required
  * @Role USER, ADMIN
  */
@@ -200,6 +206,8 @@ export async function streamProgress(req: Request, res: Response): Promise<void>
  * @Endpoint /api/assets
  * @Method GET
  * @Description Lists gallery assets with search, type filter, tag filter, pagination, and 60s Redis caching.
+ * @Params req (Request) - Express Request object containing pagination, search, and tag query params
+ *         res (Response) - Express Response object
  * @Auth Required
  * @Role USER, ADMIN
  */
@@ -242,6 +250,8 @@ export async function listAssets(req: Request, res: Response): Promise<void> {
  * @Endpoint /api/assets/:id
  * @Method GET
  * @Description Fetches asset details with signed streaming URLs.
+ * @Params req (Request) - Express Request object containing asset id in params
+ *         res (Response) - Express Response object
  * @Auth Required
  * @Role USER, ADMIN
  */
@@ -278,6 +288,8 @@ export async function getAssetById(req: Request, res: Response): Promise<void> {
  * @Endpoint /api/assets/:id/download
  * @Method GET
  * @Description Increments Redis download counters and generates presigned download URL.
+ * @Params req (Request) - Express Request object containing asset id in params
+ *         res (Response) - Express Response object
  * @Auth Required
  * @Role ADMIN
  */

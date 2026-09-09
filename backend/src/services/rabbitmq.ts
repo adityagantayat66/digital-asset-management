@@ -11,7 +11,8 @@ export const QUEUE_LOGGER = 'dam_system_logger';
 export const DLX_LOGGER = 'dam_system_logger_dlx';
 
 /**
- * Connects to RabbitMQ and asserts durable queue topology.
+ * @Description Connects to RabbitMQ and asserts durable queue topologies for processing tasks and logger stream.
+ * @Returns Promise<Channel> - Connected AMQP channel
  */
 export async function connectRabbitMQ(): Promise<Channel> {
   if (channel) return channel;
@@ -72,7 +73,9 @@ export async function connectRabbitMQ(): Promise<Channel> {
 }
 
 /**
- * Publishes an asset processing job to the RabbitMQ queue.
+ * @Description Publishes an asset processing job payload to the main RabbitMQ queue.
+ * @Params assetPayload (object) - Asset metadata payload containing assetId, rawPath, originalName, mimeType, and correlationId
+ * @Returns Promise<boolean> - True if message was successfully sent to queue
  */
 export async function publishProcessingJob(assetPayload: {
   assetId: string;
@@ -89,6 +92,11 @@ export async function publishProcessingJob(assetPayload: {
     headers: assetPayload.correlationId ? { 'x-correlation-id': assetPayload.correlationId } : undefined,
   });
 }
+/**
+ * @Description Publishes an error or audit log payload to the system logger RabbitMQ queue.
+ * @Params logPayload (ErrorLogPayload) - System log entry payload
+ * @Returns Promise<boolean> - True if log entry was successfully published
+ */
 export async function publishErrorLog(logPayload: ErrorLogPayload): Promise<boolean> {
   const ch = await connectRabbitMQ();
   // CLARIFY: Why buffer?

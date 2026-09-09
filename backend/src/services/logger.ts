@@ -2,6 +2,11 @@ import { ErrorLogPayload } from "../utils/models";
 import { publishErrorLog } from "./rabbitmq";
 
 export class LoggerService {
+    /**
+     * @Description Asynchronously dispatches structured system audit and error log events to stdout and RabbitMQ logger queue.
+     * @Params logPayload (object) - Partial log payload containing level, functionName, message, details, and stack
+     * @Returns Promise<void>
+     */
     public static async logError(logPayload: Omit<ErrorLogPayload, 'timestamp' | 'origin'>): Promise<void> {
         const fullPayload: ErrorLogPayload = {
             ...logPayload,

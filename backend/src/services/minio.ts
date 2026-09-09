@@ -3,6 +3,7 @@ import {
   PutObjectCommand, 
   GetObjectCommand, 
   DeleteObjectCommand,
+  CopyObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
   PutBucketCorsCommand,
@@ -34,7 +35,8 @@ export const presignedS3Client = new S3Client({
 });
 
 /**
- * Ensures required S3 buckets exist, configures CORS, and sets public-read policy for processed assets (thumbnails).
+ * @Description Ensures required S3 buckets exist, configures CORS, and sets public-read policy for processed assets (thumbnails).
+ * @Returns Promise<void>
  */
 export async function ensureMinioBucketsExist(): Promise<void> {
   const buckets = [env.MINIO_RAW_BUCKET, env.MINIO_PROCESSED_BUCKET];
@@ -92,8 +94,11 @@ export async function ensureMinioBucketsExist(): Promise<void> {
 }
 
 /**
- * Generates a temporary Presigned PUT URL.
- * Allows browser clients to upload files DIRECTLY to MinIO raw-assets bucket (localhost:9000)
+ * @Description Generates a temporary Presigned PUT URL allowing browser clients to upload files DIRECTLY to MinIO raw-assets bucket.
+ * @Params fileKey (string) - Unique object file key
+ *         contentType (string) - MIME content type header
+ *         expiresInSeconds (number) - Expiration timeout in seconds (default: 900)
+ * @Returns Promise<{ uploadUrl: string; rawPath: string }> - Presigned upload URL and raw asset path
  */
 export async function generatePresignedUploadUrl(
   fileKey: string,
@@ -113,7 +118,11 @@ export async function generatePresignedUploadUrl(
 }
 
 /**
- * Generates a temporary Presigned GET URL for downloading/streaming assets securely.
+ * @Description Generates a temporary Presigned GET URL for downloading or streaming assets securely.
+ * @Params bucket (string) - MinIO S3 bucket name
+ *         fileKey (string) - Target file object key
+ *         expiresInSeconds (number) - Expiration duration in seconds (default: 3600)
+ * @Returns Promise<string> - Signed GET download URL
  */
 export async function generatePresignedDownloadUrl(
   bucket: string,
@@ -129,7 +138,10 @@ export async function generatePresignedDownloadUrl(
 }
 
 /**
- * Constructs a direct static public URL for assets in public-read buckets (like thumbnails).
+ * @Description Constructs a direct static public URL for assets in public-read buckets (like thumbnails).
+ * @Params bucket (string) - MinIO S3 bucket name
+ *         fileKey (string) - Target file object key
+ * @Returns string - Formatted public asset URL
  */
 export function getPublicAssetUrl(bucket: string, fileKey: string): string {
   if (!fileKey) return '';
@@ -142,7 +154,10 @@ export function getPublicAssetUrl(bucket: string, fileKey: string): string {
 }
 
 /**
- * Deletes an object from a specified MinIO S3 bucket.
+ * @Description Deletes an object from a specified MinIO S3 bucket.
+ * @Params bucket (string) - Target MinIO S3 bucket
+ *         fileKey (string) - Object file key to delete
+ * @Returns Promise<void>
  */
 export async function deleteS3Object(bucket: string, fileKey: string): Promise<void> {
   const command = new DeleteObjectCommand({
@@ -151,3 +166,26 @@ export async function deleteS3Object(bucket: string, fileKey: string): Promise<v
   });
   await internalS3Client.send(command);
 }
+
+/**
+ * @Description Copies an existing object to a new key path within or across MinIO S3 buckets.
+ * @Params sourceBucket (string) - Source MinIO S3 bucket name
+ *         sourceKey (string) - Source object file key
+ *         targetBucket (string) - Target MinIO S3 bucket name
+ *         targetKey (string) - Target object file key
+ * @Returns Promise<void>
+ */
+export async function copyS3Object(
+  sourceBucket: string,
+  sourceKey: string,
+  targetBucket: string,
+  targetKey: string
+): Promise<void> {
+  const command = new CopyObjectCommand({
+    Bucket: targetBucket,
+    Key: targetKey,
+    CopySource: `/${sourceBucket}/${sourceKey}`,
+  });
+  await internalS3Client.send(command);
+}
+

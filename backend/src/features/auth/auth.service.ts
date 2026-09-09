@@ -6,6 +6,11 @@ import { env } from '../../config/env';
 import { HttpStatus } from '../../utils/httpStatus';
 import { AuthUserResult, UserProfileData, RegisterUserData, LoginUserData } from './auth.models';
 
+/**
+ * @Description Registers a new user in PostgreSQL, hashes their password with bcrypt, and issues a JWT token.
+ * @Params data (RegisterUserData) - Object containing email, password, name, and optional role
+ * @Returns Promise<AuthUserResult> - Generated JWT token and created user metadata
+ */
 export async function registerUser(data: RegisterUserData): Promise<AuthUserResult> {
   const { email, password, name, role } = data;
 
@@ -48,6 +53,11 @@ export async function registerUser(data: RegisterUserData): Promise<AuthUserResu
   };
 }
 
+/**
+ * @Description Validates user credentials against PostgreSQL password hash and generates an Access Token.
+ * @Params data (LoginUserData) - Object containing email and password credentials
+ * @Returns Promise<AuthUserResult> - JWT access token and user metadata
+ */
 export async function loginUser(data: LoginUserData): Promise<AuthUserResult> {
   const { email, password } = data;
 
@@ -85,6 +95,11 @@ export async function loginUser(data: LoginUserData): Promise<AuthUserResult> {
   };
 }
 
+/**
+ * @Description Retrieves public user profile details by user ID from PostgreSQL.
+ * @Params userId (string) - User UUID identifier
+ * @Returns Promise<UserProfileData> - User profile record
+ */
 export async function getUserProfile(userId: string): Promise<UserProfileData> {
   const user = await prisma.user.findUnique({
     where: { id: userId },

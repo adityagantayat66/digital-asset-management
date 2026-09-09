@@ -17,7 +17,12 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * Sends a standardized success HTTP response payload.
+ * @Description Sends a standardized success HTTP response payload with type-safe data wrapper.
+ * @Params res (Response) - Express Response object
+ *         data (T) - Generic payload data
+ *         message (string) - Human-readable success message
+ *         statusCode (HttpStatusCode) - HTTP status code (default: 200 OK)
+ * @Returns void
  */
 export function sendSuccess<T>(
   res: Response,
@@ -35,7 +40,18 @@ export function sendSuccess<T>(
 }
 
 /**
- * Sends a standardized error HTTP response payload.
+ * @Description Sends a standardized error HTTP response payload and optionally dispatches structured audit error logs.
+ * @Params res (Response) - Express Response object
+ *         message (string) - Human-readable error message
+ *         statusCode (HttpStatusCode) - HTTP status code
+ *         code (string) - Machine-readable error code string
+ *         details (any) - Optional error validation details or metadata
+ *         functionName (string) - Caller function identifier for log context
+ *         logError (boolean) - Flag to trigger RabbitMQ error logging
+ *         req (Request) - Optional Express Request object for correlation tracing
+ *         error (Error) - Raw Error object
+ *         errorLevel (ErrorLevel) - Severity level enum
+ * @Returns void
  */
 export function sendError(
   res: Response,

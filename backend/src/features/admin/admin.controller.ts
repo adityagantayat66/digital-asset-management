@@ -14,6 +14,15 @@ import { HttpStatus } from '../../utils/httpStatus';
 import { sendSuccess, sendError } from '../../utils/apiResponse';
 import { ErrorLevel } from '../../utils/models';
 
+/**
+ * @Endpoint /api/admin/metrics
+ * @Method GET
+ * @Description Fetches administrative dashboard infrastructure metrics and aggregate statistics.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function getInfraMetrics(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.getInfraMetrics';
   try {
@@ -37,6 +46,15 @@ export async function getInfraMetrics(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/worker-health
+ * @Method GET
+ * @Description Retrieves background worker queue health and active message metrics.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function getWorkerHealthMetrics(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.getWorkerHealthMetrics';
   try {
@@ -60,6 +78,15 @@ export async function getWorkerHealthMetrics(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/sync-dlq
+ * @Method POST
+ * @Description Synchronizes RabbitMQ Dead Letter Queue (DLQ) messages into PostgreSQL failed asset records.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function syncDlq(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.syncDlq';
   try {
@@ -83,6 +110,15 @@ export async function syncDlq(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/purge-dlq
+ * @Method POST
+ * @Description Purges all messages from the RabbitMQ Dead Letter Queue (DLQ).
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function purgeDeadLetters(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.purgeDeadLetters';
   try {
@@ -106,6 +142,15 @@ export async function purgeDeadLetters(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/top-stats
+ * @Method GET
+ * @Description Fetches top download leaderboard analytics and memory usage statistics.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function getTopStats(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.getTopStats';
   try {
@@ -129,6 +174,15 @@ export async function getTopStats(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/failed-assets
+ * @Method GET
+ * @Description Fetches a list of all assets currently in FAILED status.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function getFailedAssets(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.getFailedAssets';
   try {
@@ -152,6 +206,15 @@ export async function getFailedAssets(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/requeue-failed-assets/:assetId
+ * @Method POST
+ * @Description Re-enqueues a failed asset processing job back into the RabbitMQ queue.
+ * @Params req (Request) - Express Request object containing assetId in params
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function retryFailedAssets(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.retryFailedAssets';
   try {
@@ -179,6 +242,15 @@ export async function retryFailedAssets(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/discard-failed-assets/:assetId
+ * @Method DELETE
+ * @Description Deletes raw assets from MinIO and removes the failed asset record from PostgreSQL.
+ * @Params req (Request) - Express Request object containing assetId in params
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function discardFailedAssets(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.discardFailedAssets';
   try {
@@ -206,6 +278,15 @@ export async function discardFailedAssets(req: Request, res: Response) {
   }
 }
 
+/**
+ * @Endpoint /api/admin/system-logs
+ * @Method GET
+ * @Description Fetches system audit and error log records with pagination and filtering.
+ * @Params req (Request) - Express Request object containing filter query params
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role ADMIN
+ */
 export async function fetchSystemLogs(req: Request, res: Response) {
   const FUNCTION_NAME = 'adminController.fetchSystemLogs';
   try {

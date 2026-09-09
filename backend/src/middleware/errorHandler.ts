@@ -4,8 +4,12 @@ import { HttpStatus, getHttpStatusName } from '../utils/httpStatus';
 import { env } from '../config/env';
 
 /**
- * Global Express Error Handler Middleware (Safety Net for uncaught exceptions).
- * Standardizes any unhandled route error into the uniform ApiResponse format.
+ * @Description Global Express Error Handler Middleware serving as a safety net for uncaught exceptions.
+ * @Params err (any) - Error or exception thrown in route handlers
+ *         _req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ *         _next (NextFunction) - Express next middleware function
+ * @Returns void
  */
 export function errorHandler(
   err: any,

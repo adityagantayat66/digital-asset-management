@@ -15,6 +15,13 @@ export interface VideoMetadata {
     height: number;
 }
 
+/**
+ * @Description Orchestrates video metadata probing, thumbnail extraction, resolution detection, and multi-profile transcoding.
+ * @Params localFilePath (string) - Local path to input video file
+ *         localDir (string) - Local temporary working directory
+ *         assetId (string) - Asset UUID identifier
+ * @Returns Promise<{ thumbnailPath: string; videoUrls: Record<string, string | null> }> - Output file paths map
+ */
 export const processVideo = async (localFilePath: string, localDir: string, assetId: string) => {
     if (!fs.existsSync(localFilePath)) {
         throw new Error(`Video file not found at ${localFilePath}`);
@@ -61,6 +68,11 @@ export const processVideo = async (localFilePath: string, localDir: string, asse
     }
 }
 
+/**
+ * @Description Probes input video file duration, width, and height using FFprobe.
+ * @Params inputPath (string) - Path to input video file on disk
+ * @Returns Promise<VideoMetadata> - Object containing duration, width, and height
+ */
 async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
     return new Promise((resolve, reject) => {
         const args = [
@@ -112,6 +124,13 @@ async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
         });
     })
 }
+/**
+ * @Description Extracts a single frame image thumbnail from video stream using FFmpeg.
+ * @Params inputPath (string) - Path to input video file
+ *         timeOffset (string) - Time offset string in seconds (default: '2')
+ *         outputPath (string) - Local target thumbnail image file path
+ * @Returns Promise<string> - Generated thumbnail file path
+ */
 async function extractVideoThumbnail(inputPath: string, timeOffset: string = '2', outputPath: string): Promise<string> {
     return new Promise((resolve, reject) => {
         const args = [
@@ -152,6 +171,15 @@ async function extractVideoThumbnail(inputPath: string, timeOffset: string = '2'
     });
 }
 
+/**
+ * @Description Transcodes video stream to target resolution profile (1080p, 720p, SD) and reports progress percentage to Redis.
+ * @Params localFilePath (string) - Path to input video file
+ *         outputPath (string) - Target output video file path
+ *         resolution (string) - Resolution profile ('1080p', '720p', 'standard')
+ *         totalDuration (number) - Total video duration in seconds
+ *         assetId (string) - Asset UUID identifier
+ * @Returns Promise<void>
+ */
 async function transcodeVideo(localFilePath: string, outputPath: string, resolution: string, totalDuration: number, assetId: string) {
     return new Promise((resolve, reject) => {
         const scaleFilter = resolution === 'standard' ? "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease" : resolution === '720p' ? 'scale=-2:720' : 'scale=-2:1080';

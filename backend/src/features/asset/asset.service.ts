@@ -1,7 +1,8 @@
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { AssetStatus } from '@prisma/client';
 import { prisma } from '../../services/prisma';
-import { generatePresignedUploadUrl, generatePresignedDownloadUrl, getPublicAssetUrl } from '../../services/minio';
+import { generatePresignedUploadUrl, generatePresignedDownloadUrl, getPublicAssetUrl, copyS3Object } from '../../services/minio';
 import { publishProcessingJob } from '../../services/rabbitmq';
 import { redisClient } from '../../services/redis';
 import { env } from '../../config/env';
@@ -39,6 +40,11 @@ export interface ListAssetsOptions {
   userRole?: string;
 }
 
+/**
+ * @Description Generates a presigned MinIO upload URL and creates a pending asset record in PostgreSQL.
+ * @Params options (RequestPresignedUrlOptions) - Object containing filename, mimeType, size, tags, and userId
+ * @Returns Promise<PresignedUrlResult> - Asset ID, presigned PUT URL, and S3 raw object path
+ */
 export async function generateAssetPresignedUrl(options: RequestPresignedUrlOptions): Promise<PresignedUrlResult> {
   const { filename, mimeType, tags = [], size, userId } = options;
   const fileExtension = filename.includes('.') ? filename.substring(filename.lastIndexOf('.')) : '';
@@ -71,6 +77,11 @@ export async function generateAssetPresignedUrl(options: RequestPresignedUrlOpti
   return { id: asset.id, uploadUrl, rawPath };
 }
 
+/**
+ * @Description Confirms upload completion, handles instant deduplication via server-side S3 copying if checksum matches, or enqueues processing job to RabbitMQ.
+ * @Params options (ConfirmUploadOptions) - Object containing assetId, optional checksum, userId, and userRole
+ * @Returns Promise<ConfirmUploadResult> - Confirmation status message, asset ID, and deduplication flag
+ */
 export async function confirmUpload(options: ConfirmUploadOptions): Promise<ConfirmUploadResult> {
   const { assetId, checksum, userId, userRole } = options;
 
@@ -100,15 +111,51 @@ export async function confirmUpload(options: ConfirmUploadOptions): Promise<Conf
 
     if (existingAsset) {
       console.log(`⚡ Instant Deduplication Hit for Asset "${assetId}" matching ETag "${checksum}"`);
+
+      // Helper to perform fast server-side S3 object copying in MinIO so each duplicate asset owns its own S3 key lifecycle.
+      // S3 CopyObject requires:
+      // 1. sourceBucket: 'processed-assets'
+      // 2. sourceKey: existing S3 object key (e.g., 'thumbnails/userA_123.jpg')
+      // 3. targetBucket: 'processed-assets'
+      // 4. targetKey: new S3 object key for this asset (e.g., 'thumbnails/userB_456.jpg')
+      const copyAssetObject = async (sourceKey: string, defaultExtension: string): Promise<string> => {
+        // Extract S3 folder path (e.g., 'thumbnails' or 'transcoded/1080p') and file extension (e.g., '.jpg' or '.mp4')
+        const folderPath = path.posix.dirname(sourceKey);
+        const fileExtension = path.posix.extname(sourceKey) || defaultExtension;
+
+        // Construct target object key for the newly uploaded asset ID
+        const targetKey = `${folderPath}/${asset.id}${fileExtension}`;
+
+        try {
+          await copyS3Object(
+            env.MINIO_PROCESSED_BUCKET, // Source Bucket
+            sourceKey,                  // Source Key in MinIO
+            env.MINIO_PROCESSED_BUCKET, // Target Bucket
+            targetKey                   // Target Key in MinIO
+          );
+          return targetKey;
+        } catch (err: any) {
+          console.warn(`⚠️ Failed to copy S3 object from "${sourceKey}" to "${targetKey}", falling back:`, err?.message || err);
+          return sourceKey;
+        }
+      };
+
+      const [thumbnailUrl, transcodedSdUrl, transcoded720pUrl, transcoded1080pUrl] = await Promise.all([
+        existingAsset.thumbnailUrl ? copyAssetObject(existingAsset.thumbnailUrl, '.jpg') : Promise.resolve(null),
+        existingAsset.transcodedSdUrl ? copyAssetObject(existingAsset.transcodedSdUrl, '.mp4') : Promise.resolve(null),
+        existingAsset.transcoded720pUrl ? copyAssetObject(existingAsset.transcoded720pUrl, '.mp4') : Promise.resolve(null),
+        existingAsset.transcoded1080pUrl ? copyAssetObject(existingAsset.transcoded1080pUrl, '.mp4') : Promise.resolve(null),
+      ]);
+
       const deduplicatedAsset = await prisma.asset.update({
         where: { id: asset.id },
         data: {
           checksum,
           status: AssetStatus.COMPLETED,
-          thumbnailUrl: existingAsset.thumbnailUrl,
-          transcodedSdUrl: existingAsset.transcodedSdUrl,
-          transcoded720pUrl: existingAsset.transcoded720pUrl,
-          transcoded1080pUrl: existingAsset.transcoded1080pUrl,
+          thumbnailUrl,
+          transcodedSdUrl,
+          transcoded720pUrl,
+          transcoded1080pUrl,
         },
       });
 
@@ -173,6 +220,11 @@ export async function confirmUpload(options: ConfirmUploadOptions): Promise<Conf
   };
 }
 
+/**
+ * @Description Queries paginated gallery assets from PostgreSQL with filtering, search, and 60-second Redis query caching.
+ * @Params options (ListAssetsOptions) - Query options including page, limit, search, type, tag, userId, userRole
+ * @Returns Promise<GalleryAssetsResult> - Paginated list of assets with formatted public thumbnail URLs
+ */
 export async function getGalleryAssets(options: ListAssetsOptions): Promise<GalleryAssetsResult> {
   const { page, limit, search = '', type = '', tag = '', userId, userRole } = options;
 
@@ -244,6 +296,11 @@ export async function getGalleryAssets(options: ListAssetsOptions): Promise<Gall
   return result;
 }
 
+/**
+ * @Description Retrieves single asset metadata and generates presigned download URLs for streaming media representations.
+ * @Params id (string) - Asset UUID
+ * @Returns Promise<AssetDetailsResult> - Detailed asset metadata with presigned streaming URLs
+ */
 export async function getAssetDetails(id: string): Promise<AssetDetailsResult> {
   const asset = await prisma.asset.findUnique({
     where: { id },
@@ -285,6 +342,11 @@ export async function getAssetDetails(id: string): Promise<AssetDetailsResult> {
   };
 }
 
+/**
+ * @Description Increments Redis analytics counters and generates a presigned download URL for the master raw asset file.
+ * @Params id (string) - Asset UUID
+ * @Returns Promise<AssetDownloadResult> - Presigned download URL and original filename
+ */
 export async function processAssetDownload(id: string): Promise<AssetDownloadResult> {
   const asset = await prisma.asset.findUnique({ where: { id } });
   if (!asset) {

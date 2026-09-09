@@ -20,6 +20,10 @@ const JobPayloadSchema = z.object({
     originalName: z.string(),
     mimeType: z.string(),
 })
+/**
+ * @Description Initializes worker background message consumer loop, heartbeats, and asset processing pipeline.
+ * @Returns Promise<void>
+ */
 async function startWorker() {
     try {
         const workerId = `worker:${os.hostname()}:${process.pid}`;

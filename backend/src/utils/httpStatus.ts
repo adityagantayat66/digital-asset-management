@@ -25,8 +25,10 @@ export const HttpStatusNames = Object.fromEntries(
 ) as Record<number, HttpStatusKey>;
 
 /**
- * Returns the status key string corresponding to a numeric status code.
- * Fallbacks to a default key (e.g., 'BAD_REQUEST' or 'INTERNAL_SERVER_ERROR') if status code is not mapped.
+ * @Description Returns the status key string corresponding to a numeric HTTP status code (e.g. 404 -> 'NOT_FOUND').
+ * @Params statusCode (number) - Numeric HTTP status code
+ *         fallback (string) - Fallback string if status code is unmapped (default: 'BAD_REQUEST')
+ * @Returns string - String name representation of status code
  */
 export function getHttpStatusName(
   statusCode: number,

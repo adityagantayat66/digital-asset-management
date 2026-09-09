@@ -6,6 +6,10 @@ import { env } from '../config/env';
 const RETENTION_DAYS = 10;
 const LOG_DIR = path.resolve(process.cwd(), env.LOG_DIR);
 
+/**
+ * @Description Purges PostgreSQL system_logs database entries and disk log files older than 10 days.
+ * @Returns Promise<void>
+ */
 export async function runRetentionCleanup(): Promise<void> {
   console.log(`🧹 Running automated ${RETENTION_DAYS}-day log retention cleanup...`);
   const cutoffDate = new Date();
@@ -43,6 +47,10 @@ export async function runRetentionCleanup(): Promise<void> {
   }
 }
 
+/**
+ * @Description Initializes 24-hour interval timer to periodically trigger log retention cleanup.
+ * @Returns void
+ */
 export function startRetentionSchedule(): void {
   // Run immediately on container startup
   runRetentionCleanup().catch((err) => console.error('❌ Initial retention cleanup failed:', err));

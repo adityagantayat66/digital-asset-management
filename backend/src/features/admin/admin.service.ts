@@ -14,6 +14,10 @@ import {
 import { deleteS3Object } from '../../services/minio';
 import { env } from '../../config/env';
 
+/**
+ * @Description Aggregates administrative dashboard metrics including total assets, storage volume, download count, and worker node count.
+ * @Returns Promise<AdminMetricsData | null> - High-level system metrics
+ */
 export async function getAdminMetrics(): Promise<AdminMetricsData | null> {
   const [totalAssets, totalStorageBytes] = await Promise.all([
     prisma.asset.count(),
@@ -33,6 +37,10 @@ export async function getAdminMetrics(): Promise<AdminMetricsData | null> {
   };
 }
 
+/**
+ * @Description Queries RabbitMQ queue depth, DLQ message count, Redis locks, and active worker heartbeats.
+ * @Returns Promise<QueueMetricsData> - Detailed queue and worker cluster health metrics
+ */
 export async function getQueueMetrics(): Promise<QueueMetricsData> {
   const channel = await connectRabbitMQ();
   const [queueInfo, dlqInfo, activeProcessingJobs, distributedJobLocks, workerHeartbeatKeys, failedAssetsCount, rawCronLog] =
@@ -80,6 +88,10 @@ export async function getQueueMetrics(): Promise<QueueMetricsData> {
   };
 }
 
+/**
+ * @Description Drains unacknowledged messages from RabbitMQ Dead Letter Queue (DLQ) and updates PostgreSQL asset status to FAILED.
+ * @Returns Promise<DlqSyncResult> - Count of synced failed asset records
+ */
 export async function syncDlqToDb(): Promise<DlqSyncResult> {
   const channel = await connectRabbitMQ();
   const dlqQueue = `${QUEUE_ASSET_PROCESSING}_dead_letters`;
@@ -116,6 +128,10 @@ export async function syncDlqToDb(): Promise<DlqSyncResult> {
   return { syncedCount };
 }
 
+/**
+ * @Description Purges all dead letter messages from the RabbitMQ DLQ.
+ * @Returns Promise<DlqPurgeResult> - Number of purged messages
+ */
 export async function purgeDlq(): Promise<DlqPurgeResult> {
   const channel = await connectRabbitMQ();
   const dlqQueue = `${QUEUE_ASSET_PROCESSING}_dead_letters`;
@@ -123,6 +139,10 @@ export async function purgeDlq(): Promise<DlqPurgeResult> {
   return { purgedCount: result.messageCount };
 }
 
+/**
+ * @Description Fetches top download leaderboard analytics and storage consumption statistics from Redis and PostgreSQL.
+ * @Returns Promise<DownloadAndMemoryStatsData> - Top asset download and storage statistics
+ */
 export async function getDownloadAndMemoryStats(): Promise<DownloadAndMemoryStatsData> {
   // 1. Fetch Top 3 Asset IDs from Redis Sorted Set (RAM)
   const topAssetIds = await redisClient.zrevrange('analytics:top_downloads', 0, 2);
@@ -172,6 +192,10 @@ export async function getDownloadAndMemoryStats(): Promise<DownloadAndMemoryStat
   };
 }
 
+/**
+ * @Description Retrieves a list of all assets currently in FAILED status from PostgreSQL.
+ * @Returns Promise<Asset[]> - List of failed asset records with uploader details
+ */
 export async function getFailedAssetsFromDB(): Promise<Asset[]> {
   return await prisma.asset.findMany({
     where: { status: AssetStatus.FAILED },
@@ -180,6 +204,11 @@ export async function getFailedAssetsFromDB(): Promise<Asset[]> {
   });
 }
 
+/**
+ * @Description Resets a failed asset status to QUEUED and re-publishes the processing job to RabbitMQ.
+ * @Params assetId (string) - Asset UUID identifier
+ * @Returns Promise<RequeueAssetResult> - Success result object
+ */
 export async function requeueFailedAsset(assetId: string): Promise<RequeueAssetResult> {
   const asset = await prisma.asset.findUnique({
     where: { id: assetId },
@@ -204,6 +233,11 @@ export async function requeueFailedAsset(assetId: string): Promise<RequeueAssetR
   return { success: true };
 }
 
+/**
+ * @Description Deletes a failed asset's raw object from MinIO and deletes its PostgreSQL record.
+ * @Params assetId (string) - Asset UUID identifier
+ * @Returns Promise<DeleteAssetResult> - Deletion success result object
+ */
 export async function deleteFailedAssets(assetId: string): Promise<DeleteAssetResult> {
   try {
     const asset = await prisma.asset.findUnique({ where: { id: assetId } });
@@ -227,6 +261,11 @@ export async function deleteFailedAssets(assetId: string): Promise<DeleteAssetRe
   }
 }
 
+/**
+ * @Description Queries paginated system audit and error logs from PostgreSQL with filtering by log level, origin, or search query.
+ * @Params params (object) - Query options including page, limit, level, origin, search
+ * @Returns Promise<object> - Paginated system logs and pagination metadata
+ */
 export async function getSystemLogs(params: {
   page?: number;
   limit?: number;

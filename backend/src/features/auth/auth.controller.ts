@@ -23,8 +23,12 @@ const loginSchema = z.object({
 });
 
 /**
- * Helper to set auth cookies (Access Token & Refresh Token)
- * Revokes any existing refresh token in Redis before issuing a new one.
+ * @Description Helper to set auth cookies (Access Token & Refresh Token) and revoke existing tokens in Redis.
+ * @Params req (Request) - Express Request object containing incoming cookies
+ *         res (Response) - Express Response object to attach HttpOnly cookies
+ *         accessToken (string) - Signed JWT Access Token string
+ *         user (object) - User payload { id, email, role }
+ * @Returns Promise<string> - Generated opaque refresh token
  */
 async function attachAuthCookies(
   req: Request,
@@ -71,8 +75,13 @@ async function attachAuthCookies(
 }
 
 /**
- * POST /api/auth/register
- * Registers a new user account with hashed password and returns JWT token.
+ * @Endpoint /api/auth/register
+ * @Method POST
+ * @Description Registers a new user account with hashed password and returns JWT token.
+ * @Params req (Request) - Express Request object containing registration body
+ *         res (Response) - Express Response object
+ * @Auth None
+ * @Role PUBLIC
  */
 export async function register(req: Request, res: Response): Promise<void> {
   const FUNCTION_NAME = 'authController.register';
@@ -124,8 +133,13 @@ export async function register(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * POST /api/auth/login
- * Authenticates user credentials, returns JWT payload, and sets HttpOnly cookies.
+ * @Endpoint /api/auth/login
+ * @Method POST
+ * @Description Authenticates user credentials, returns JWT payload, and sets HttpOnly cookies.
+ * @Params req (Request) - Express Request object containing email and password body
+ *         res (Response) - Express Response object
+ * @Auth None
+ * @Role PUBLIC
  */
 export async function login(req: Request, res: Response): Promise<void> {
   const FUNCTION_NAME = 'authController.login';
@@ -176,8 +190,13 @@ export async function login(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * POST /api/auth/refresh
- * Validates Refresh Token from Redis, performs Refresh Token Rotation, and returns new Access Token.
+ * @Endpoint /api/auth/refresh
+ * @Method POST
+ * @Description Validates Refresh Token from Redis, performs Refresh Token Rotation, and returns new Access Token.
+ * @Params req (Request) - Express Request object containing refresh token cookie
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role USER, ADMIN
  */
 export async function refreshTokenHandler(req: Request, res: Response): Promise<void> {
   const FUNCTION_NAME = 'authController.refreshTokenHandler';
@@ -232,8 +251,13 @@ export async function refreshTokenHandler(req: Request, res: Response): Promise<
 }
 
 /**
- * POST /api/auth/logout
- * Clears HttpOnly authentication cookies and revokes refresh token in Redis.
+ * @Endpoint /api/auth/logout
+ * @Method POST
+ * @Description Clears HttpOnly authentication cookies and revokes refresh token in Redis.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role USER, ADMIN
  */
 export async function logout(req: Request, res: Response): Promise<void> {
   const isSecure = env.ENABLE_HTTPS;
@@ -260,8 +284,13 @@ export async function logout(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * GET /api/auth/me
- * Returns profile details for the currently authenticated user.
+ * @Endpoint /api/auth/me
+ * @Method GET
+ * @Description Returns profile details for the currently authenticated user.
+ * @Params req (Request) - Express Request object containing authenticated user context
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role USER, ADMIN
  */
 export async function getProfile(req: Request, res: Response): Promise<void> {
   const FUNCTION_NAME = 'authController.getProfile';

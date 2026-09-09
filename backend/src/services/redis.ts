@@ -34,7 +34,11 @@ export interface RefreshTokenPayload {
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 
 /**
- * Saves a refresh token string mapped to user payload with TTL in Redis.
+ * @Description Saves a refresh token string mapped to user session payload with TTL in Redis.
+ * @Params refreshToken (string) - Opaque refresh token string
+ *         payload (RefreshTokenPayload) - User session payload object
+ *         ttlSeconds (number) - Time-to-live expiration in seconds (default: env setting)
+ * @Returns Promise<void>
  */
 export async function saveRefreshToken(
   refreshToken: string,
@@ -46,7 +50,9 @@ export async function saveRefreshToken(
 }
 
 /**
- * Fetches the user payload associated with a refresh token from Redis.
+ * @Description Fetches the user session payload associated with a refresh token from Redis.
+ * @Params refreshToken (string) - Opaque refresh token string
+ * @Returns Promise<RefreshTokenPayload | null> - User session payload or null if expired/invalid
  */
 export async function getRefreshTokenPayload(refreshToken: string): Promise<RefreshTokenPayload | null> {
   const key = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;
@@ -60,7 +66,9 @@ export async function getRefreshTokenPayload(refreshToken: string): Promise<Refr
 }
 
 /**
- * Removes a refresh token from Redis (revocation / logout).
+ * @Description Removes a refresh token from Redis upon logout or token rotation.
+ * @Params refreshToken (string) - Opaque refresh token string to revoke
+ * @Returns Promise<void>
  */
 export async function deleteRefreshToken(refreshToken: string): Promise<void> {
   const key = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;

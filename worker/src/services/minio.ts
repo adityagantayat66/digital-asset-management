@@ -23,6 +23,11 @@ export const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
+/**
+ * @Description Asserts that an S3 bucket exists in MinIO or creates it if missing.
+ * @Params bucketName (string) - MinIO S3 bucket name
+ * @Returns Promise<void>
+ */
 export async function assertBucketExists(bucketName: string) {
   try {
     await s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
@@ -35,6 +40,12 @@ export async function assertBucketExists(bucketName: string) {
   }
 }
 
+/**
+ * @Description Downloads a raw uploaded file object from MinIO to local filesystem temp storage.
+ * @Params rawPath (string) - MinIO raw asset object path
+ *         localPath (string) - Target local file system path
+ * @Returns Promise<void>
+ */
 export async function downloadRawAssets(rawPath: string, localPath: string) {
   if (!rawPath.length || !localPath.length) {
     LoggerService.logError({
@@ -77,6 +88,13 @@ export async function downloadRawAssets(rawPath: string, localPath: string) {
   }
 }
 
+/**
+ * @Description Uploads a processed asset file (thumbnail or transcoded video) from local temp storage to MinIO.
+ * @Params fileKey (string) - MinIO target object key
+ *         filePath (string) - Local file path to read from
+ *         contentType (string) - Content MIME type header (default: image/jpeg)
+ * @Returns Promise<string> - Uploaded S3 object key
+ */
 export async function uploadProcessedAsset(fileKey: string, filePath: string, contentType: string = 'image/jpeg') {
   if (!fileKey.length || !filePath.length) {
     LoggerService.logError({
@@ -111,6 +129,11 @@ export async function uploadProcessedAsset(fileKey: string, filePath: string, co
   }
 }
 
+/**
+ * @Description Deletes a master raw asset file from the MinIO raw-assets bucket.
+ * @Params rawPath (string) - MinIO raw asset object path
+ * @Returns Promise<void>
+ */
 export async function deleteRawAsset(rawPath: string): Promise<void> {
   if (!rawPath) return;
   const objectKey = rawPath.startsWith(`${env.MINIO_RAW_BUCKET}/`)

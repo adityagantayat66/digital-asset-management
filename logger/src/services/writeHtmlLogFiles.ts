@@ -6,6 +6,11 @@ import { env } from '../config/env';
 
 const LOG_DIR = path.resolve(process.cwd(), env.LOG_DIR);
 
+/**
+ * @Description Formats and appends a styled HTML card for an error log payload into daily HTML log backup file.
+ * @Params payload (ErrorLogPayload) - System error log entry payload
+ * @Returns Promise<void>
+ */
 export async function writeHtmlLogToFile(payload: ErrorLogPayload): Promise<void> {
     // 1. Ensure 'Error-Logs' directory exists
     if (!fs.existsSync(LOG_DIR)) {
@@ -27,6 +32,11 @@ export async function writeHtmlLogToFile(payload: ErrorLogPayload): Promise<void
     await fs.promises.appendFile(filePath, cardHtml, 'utf8');
 }
 
+/**
+ * @Description Generates HTML document head and layout header string for daily log files.
+ * @Params dateStr (string) - Date string identifier
+ * @Returns string - Formatted HTML header string
+ */
 function getHtmlLogHeader(dateStr: string): string {
     return `<!DOCTYPE html>
             <html lang="en">
@@ -63,6 +73,11 @@ function getHtmlLogHeader(dateStr: string): string {
 }
 
 // Helper to escape HTML special characters to prevent XSS in log viewer
+/**
+ * @Description Escapes special HTML characters in log values to prevent XSS.
+ * @Params str (string) - Raw unescaped string
+ * @Returns string - Escaped safe HTML string
+ */
 function escapeHtml(str: string = ''): string {
     return String(str ?? '')
         .replace(/&/g, '&amp;')
@@ -71,6 +86,11 @@ function escapeHtml(str: string = ''): string {
         .replace(/"/g, '&quot;');
 }
 
+/**
+ * @Description Constructs styled HTML card component representation of error payload.
+ * @Params payload (ErrorLogPayload) - System error log entry payload
+ * @Returns string - Formatted HTML card string
+ */
 function generateErrorCardHtml(payload: ErrorLogPayload): string {
     const levelClass = (payload.level || 'ERROR').toLowerCase();
 

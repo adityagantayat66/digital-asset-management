@@ -10,6 +10,11 @@ const LOG_DIR = path.resolve(process.cwd(), env.LOG_DIR);
 let isWriting = false;
 const writeQueue: string[] = [];
 
+/**
+ * @Description Processes incoming error log payload by logging to stdout, persisting to PostgreSQL, and queuing disk append.
+ * @Params payload (ErrorLogPayload) - System error log entry payload
+ * @Returns Promise<void>
+ */
 export async function processLogEntry(payload: ErrorLogPayload): Promise<void> {
   // 1. Output structured JSON line to container stdout (12-Factor App)
   console.log(JSON.stringify({
@@ -53,6 +58,10 @@ export async function processLogEntry(payload: ErrorLogPayload): Promise<void> {
   flushWriteQueue().catch((err) => console.error('❌ File Log Write Error:', err));
 }
 
+/**
+ * @Description Sequentially flushes in-memory log lines queue to daily JSONL disk file.
+ * @Returns Promise<void>
+ */
 async function flushWriteQueue(): Promise<void> {
   if (isWriting || writeQueue.length === 0) return;
   isWriting = true;

@@ -10,9 +10,8 @@ const CRON_LAST_EXECUTED_KEY = 'cron:last_executed';
 const LOCK_TTL_SECONDS = 3600; // 1 hour TTL for distributed lock
 
 /**
- * 24-Hour Stale Upload Cleanup Task
- * Deletes PENDING_UPLOAD records and any raw MinIO data if status has been pending for over 6 hours.
- * Uses a Redis Distributed Lock (SET NX EX) to prevent duplicate execution across scaled worker instances.
+ * @Description Runs 24-hour stale upload cleanup task using Redis distributed locks to purge expired PENDING_UPLOAD assets.
+ * @Returns Promise<void>
  */
 export async function cleanupStaleUploads(): Promise<void> {
   try {
@@ -93,7 +92,8 @@ export async function cleanupStaleUploads(): Promise<void> {
 }
 
 /**
- * Initializes cron jobs for the worker service.
+ * @Description Initializes node-cron schedules for background maintenance jobs.
+ * @Returns void
  */
 export function initCronJobs(): void {
   // Schedule cleanup task to run every 24 hours (daily at midnight: 00:00)

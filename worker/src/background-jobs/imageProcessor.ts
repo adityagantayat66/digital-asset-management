@@ -6,6 +6,12 @@ import { LoggerService } from "../services/logger";
 // Disable Sharp file cache to prevent OS file locks on Windows during async temp cleanup
 sharp.cache(false);
 
+/**
+ * @Description Generates a 300x300 JPEG thumbnail image from local source file using Sharp.
+ * @Params localPath (string) - Path to input image file on disk
+ *         localDir (string) - Directory path for saving output thumbnail file
+ * @Returns Promise<{ thumbnailPath: string; metadata: sharp.Metadata }> - Generated thumbnail path and metadata
+ */
 export const generateImageThumbnail = async (localPath: string, localDir: string) => {
     if (!fs.existsSync(localPath)) {
         LoggerService.logError({

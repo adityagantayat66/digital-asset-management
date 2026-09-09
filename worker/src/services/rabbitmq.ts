@@ -27,7 +27,8 @@ export const DLX_LOGGER = 'dam_system_logger_dlx';
 export const QUEUE_ASSET_PROCESSING = 'asset_processing';
 export const DLX_ASSET_PROCESSING = 'asset_processing_dlx';
 /**
- * Connects to RabbitMQ and asserts durable queue topology.
+ * @Description Connects worker service to RabbitMQ broker and asserts exchange/queue topologies.
+ * @Returns Promise<Channel> - Connected AMQP channel
  */
 export async function connectRabbitMQ(): Promise<Channel> {
     if (channel) return channel;
@@ -76,7 +77,9 @@ export async function connectRabbitMQ(): Promise<Channel> {
 }
 
 /**
- * Publishes error log to RabbitMQ.
+ * @Description Publishes structured error log payload to system logger RabbitMQ queue.
+ * @Params logPayload (ErrorLogPayload) - System log entry payload
+ * @Returns Promise<void>
  */
 export async function publishErrorLog(logPayload: ErrorLogPayload): Promise<void> {
     if (!channel) {
