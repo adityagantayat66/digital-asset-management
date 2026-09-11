@@ -1,0 +1,32 @@
+# Environment files
+.env
+.env.local
+*.env
+
+# Dependencies
+node_modules/
+dist/
+build/
+.cache/
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Database & Storage Volumes
+*.log
+postgres_data/
+minio_data/
+redis_data/
+rabbitmq_data/
+
+# SSL Certificates & Private Keys
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+*.pem
+*.key
+*.crt
+

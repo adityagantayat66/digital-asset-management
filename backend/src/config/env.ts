@@ -12,7 +12,11 @@ const envSchema = z.object({
 
   // HTTPS & Security Settings
   ENABLE_HTTPS: z.string().transform((val) => val === 'true').default('false'),
-  FRONTEND_URLS: z
+  SECURE_FRONTEND_URLS: z
+    .string()
+    .default('https://localhost:8443,https://127.0.0.1:8443')
+    .transform((val) => val.split(',').map((url) => url.trim()).filter(Boolean)),
+  LOCAL_FRONTEND_URLS: z
     .string()
     .default('http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080')
     .transform((val) => val.split(',').map((url) => url.trim()).filter(Boolean)),
@@ -50,4 +54,18 @@ if (!_env.success) {
   throw new Error('Invalid environment configuration. Please check your .env file.');
 }
 
-export const env = _env.data;
+const parsed = _env.data;
+
+// Combine secure and local (dev-only) origins into a deduplicated list
+const activeFrontendUrls = Array.from(
+  new Set([
+    ...parsed.SECURE_FRONTEND_URLS,
+    ...(parsed.NODE_ENV === 'development' ? parsed.LOCAL_FRONTEND_URLS : []),
+  ])
+);
+
+export const env = {
+  ...parsed,
+  FRONTEND_URLS: activeFrontendUrls,
+};
+

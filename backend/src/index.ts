@@ -19,29 +19,25 @@ const app = express();
 // Mount Correlation ID middleware first to ensure all requests have X-Correlation-ID
 app.use(correlationMiddleware);
 
+// Allowed Origins for CORS and Helmet Content Security Policy (CSP)
+const ALLOWED_ORIGINS = env.FRONTEND_URLS;
+
 // Enable Security Headers with Helmet
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"], //default fallback for all resources
-        scriptSrc: ["'self'", "'unsafe-inline'"], //allow inline scripts
-        styleSrc: ["'self'", "'unsafe-inline'"], //allow inline styles
-        imgSrc: ["'self'", 'data:', 'blob:', 'http://localhost:9000', 'http://localhost:8080'], //allow images from Base64 inline image data,: Object URLs created in JS via URL.createObjectURL(file),  localhost
-        connectSrc: ["'self'", 'http://localhost:8080', 'http://localhost:5000'], //allow requests to localhost
+        defaultSrc: ["'self'"], // default fallback for all resources
+        scriptSrc: ["'self'", "'unsafe-inline'"], // allow inline scripts
+        styleSrc: ["'self'", "'unsafe-inline'"], // allow inline styles
+        imgSrc: ["'self'", 'data:', 'blob:', env.MINIO_PUBLIC_ENDPOINT, ...ALLOWED_ORIGINS],
+        connectSrc: ["'self'", 'ws:', 'wss:', ...ALLOWED_ORIGINS],
       },
     },
-    crossOriginResourcePolicy: { policy: 'cross-origin' }, //allow cross-origin requests
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow cross-origin requests
     hsts: env.ENABLE_HTTPS, // ⚡ Only enforce HTTPS when ENABLE_HTTPS=true
   })
 );
-
-// Enable Cross-Origin Resource Sharing (CORS) with Credentials for HttpOnly Cookies
-const ALLOWED_ORIGINS = [
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'http://127.0.0.1:8080',
-];
 
 app.use(
   cors({
@@ -51,8 +47,11 @@ app.use(
         return callback(null, true);
       }
 
-      // Allow requests from whitelisted origins or local dev ports
-      if (ALLOWED_ORIGINS.includes(origin) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+      // Allow requests from whitelisted origins (in dev mode, regex allows dynamic dev ports)
+      if (
+        ALLOWED_ORIGINS.includes(origin) ||
+        (env.NODE_ENV === 'development' && /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin))
+      ) {
         return callback(null, true);
       }
 
@@ -86,6 +85,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
       status: 'UP',
       timestamp: new Date().toISOString(),
       environment: env.NODE_ENV,
+      httpsEnabled: env.ENABLE_HTTPS,
       uptime: process.uptime(),
     },
     'System health check successful',
@@ -116,6 +116,7 @@ async function startServer() {
 
     app.listen(env.PORT, () => {
       console.log(`🚀 Digital Asset Management API Gateway listening on http://localhost:${env.PORT}`);
+      console.log(`🔒 HTTPS Security Mode (HSTS & Secure Cookies): ${env.ENABLE_HTTPS ? 'ENABLED (true)' : 'DISABLED (false)'}`);
     });
   } catch (error) {
     console.error('❌ Failed to start API Gateway server:', error);
