@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Download, Tag, Calendar, User, HardDrive, Film, Image as ImageIcon, FileText, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Download, Tag, Calendar, User, HardDrive, Film, Image as ImageIcon, FileText, Check, Loader2 } from 'lucide-react';
 import type { Asset } from '../types';
 import { assetService } from '../services/assetService';
 import { formatBytes } from '../utils/_helperFunctions';
@@ -10,12 +10,45 @@ interface AssetDetailModalProps {
   onClose: () => void;
 }
 
-export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, isOpen, onClose }) => {
+export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset: initialAsset, isOpen, onClose }) => {
+  const [fullAsset, setFullAsset] = useState<Asset | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
   const [selectedQuality, setSelectedQuality] = useState<'1080p' | '720p' | 'sd'>('sd');
   const [isDownloading, setIsDownloading] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  if (!isOpen || !asset) return null;
+  useEffect(() => {
+    let isMounted = true;
+    if (isOpen && initialAsset?.id) {
+      setIsLoadingDetails(true);
+      assetService.getAssetById(initialAsset.id)
+        .then((data) => {
+          if (isMounted) {
+            setFullAsset(data);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load asset details:', err);
+          if (isMounted) {
+            setFullAsset(initialAsset);
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoadingDetails(false);
+          }
+        });
+    } else {
+      setFullAsset(null);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, initialAsset?.id]);
+
+  if (!isOpen || !initialAsset) return null;
+
+  const asset = fullAsset || initialAsset;
 
   const isVideo = asset.mimeType.startsWith('video/');
   const isImage = asset.mimeType.startsWith('image/');
@@ -77,6 +110,11 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, isOpe
           {/* Media Player / Preview Area (2/3 width) */}
           <div className="lg:col-span-2 flex flex-col space-y-4">
             <div className="w-full bg-slate-900 rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center min-h-[280px] max-h-[420px] relative">
+              {isLoadingDetails && (
+                <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-10">
+                  <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                </div>
+              )}
               {isVideo ? (
                 <video
                   key={getActiveVideoUrl()}
@@ -105,7 +143,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, isOpe
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-white/5 text-xs">
                 <span className="text-slate-400 font-medium">Transcoded Quality:</span>
                 <div className="flex items-center space-x-2">
-                  {asset.transcoded1080pUrl && (
+                  {(asset.has1080p || asset.transcoded1080pUrl) && (
                     <button
                       onClick={() => setSelectedQuality('1080p')}
                       className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${selectedQuality === '1080p'
@@ -116,7 +154,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, isOpe
                       1080p Full HD
                     </button>
                   )}
-                  {asset.transcoded720pUrl && (
+                  {(asset.has720p || asset.transcoded720pUrl) && (
                     <button
                       onClick={() => setSelectedQuality('720p')}
                       className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${selectedQuality === '720p'
@@ -127,7 +165,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, isOpe
                       720p HD
                     </button>
                   )}
-                  {asset.transcodedSdUrl && (
+                  {(asset.hasSd || asset.transcodedSdUrl) && (
                     <button
                       onClick={() => setSelectedQuality('sd')}
                       className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${selectedQuality === 'sd'

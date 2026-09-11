@@ -276,11 +276,23 @@ export async function getGalleryAssets(options: ListAssetsOptions): Promise<Gall
     }),
   ]);
 
-  const result = {
+  const result: GalleryAssetsResult = {
     assets: assets.map((asset) => ({
-      ...asset,
+      id: asset.id,
+      originalName: asset.originalName,
+      mimeType: asset.mimeType,
+      size: asset.size,
+      status: asset.status,
       thumbnailUrl: asset.thumbnailUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.thumbnailUrl) : null,
+      downloadCount: asset.downloadCount,
+      createdAt: asset.createdAt,
+      updatedAt: asset.updatedAt,
+      uploaderId: asset.uploaderId,
+      has1080p: Boolean(asset.transcoded1080pUrl),
+      has720p: Boolean(asset.transcoded720pUrl),
+      hasSd: Boolean(asset.transcodedSdUrl),
       tags: asset.tags.map((t) => t.tag.name),
+      uploader: asset.uploader,
     })),
     pagination: {
       page,
@@ -289,7 +301,6 @@ export async function getGalleryAssets(options: ListAssetsOptions): Promise<Gall
       totalPages: Math.ceil(total / limit),
     },
   };
-
   // 4. Cache result in Redis for 60 seconds
   await redisClient.setex(cacheKey, 60, JSON.stringify(result));
 
@@ -316,21 +327,11 @@ export async function getAssetDetails(id: string): Promise<AssetDetailsResult> {
     throw error;
   }
 
-  // Generate static public URL for thumbnail, signed URLs for video streams
+  // Format clean public asset URLs for thumbnail and video streams (authenticated via Nginx auth_request)
   const thumbnailUrl = asset.thumbnailUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.thumbnailUrl) : null;
-  let transcodedSdUrl = asset.transcodedSdUrl;
-  let transcoded720pUrl = asset.transcoded720pUrl;
-  let transcoded1080pUrl = asset.transcoded1080pUrl;
-
-  if (transcodedSdUrl && !transcodedSdUrl.startsWith('http')) {
-    transcodedSdUrl = await generatePresignedDownloadUrl(env.MINIO_PROCESSED_BUCKET, transcodedSdUrl);
-  }
-  if (transcoded720pUrl && !transcoded720pUrl.startsWith('http')) {
-    transcoded720pUrl = await generatePresignedDownloadUrl(env.MINIO_PROCESSED_BUCKET, transcoded720pUrl);
-  }
-  if (transcoded1080pUrl && !transcoded1080pUrl.startsWith('http')) {
-    transcoded1080pUrl = await generatePresignedDownloadUrl(env.MINIO_PROCESSED_BUCKET, transcoded1080pUrl);
-  }
+  const transcodedSdUrl = asset.transcodedSdUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.transcodedSdUrl) : null;
+  const transcoded720pUrl = asset.transcoded720pUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.transcoded720pUrl) : null;
+  const transcoded1080pUrl = asset.transcoded1080pUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.transcoded1080pUrl) : null;
 
   return {
     ...asset,

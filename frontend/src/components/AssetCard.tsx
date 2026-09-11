@@ -88,17 +88,17 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onSelect, onDownloa
           {/* Video Resolution Badges */}
           {isVideo ? (
             <div className="flex space-x-1">
-              {asset.transcoded1080pUrl && (
+              {(asset.has1080p || asset.transcoded1080pUrl) && (
                 <span className="px-1.5 py-0.5 rounded bg-purple-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
                   1080p
                 </span>
               )}
-              {asset.transcoded720pUrl && (
+              {(asset.has720p || asset.transcoded720pUrl) && (
                 <span className="px-1.5 py-0.5 rounded bg-indigo-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
                   720p
                 </span>
               )}
-              {asset.transcodedSdUrl && (
+              {(asset.hasSd || asset.transcodedSdUrl) && (
                 <span className="px-1.5 py-0.5 rounded bg-blue-600/90 text-white text-[9px] font-extrabold uppercase shadow-sm">
                   SD
                 </span>

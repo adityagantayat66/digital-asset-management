@@ -333,3 +333,20 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
     );
   }
 }
+
+/**
+ * @Endpoint /api/auth/verify-cookie
+ * @Method GET
+ * @Description Endpoint invoked by Nginx auth_request subrequest to verify authentication for MinIO media access.
+ * @Params req (Request) - Express Request object
+ *         res (Response) - Express Response object
+ * @Auth Required
+ * @Role USER, ADMIN
+ */
+export async function verifyCookie(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(HttpStatus.UNAUTHORIZED).end();
+    return;
+  }
+  res.status(HttpStatus.OK).end();
+}

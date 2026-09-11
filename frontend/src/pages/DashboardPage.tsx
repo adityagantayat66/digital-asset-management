@@ -68,9 +68,16 @@ export const DashboardPage: React.FC = () => {
     };
   }, [searchQuery, page, selectedType, fetchAssets]);
 
-  const handleAssetSelect = (asset: Asset) => {
-    setSelectedAsset(asset);
-    setIsDetailModalOpen(true);
+  const handleAssetSelect = async (asset: Asset) => {
+    try {
+      const fullAssetDetails = await assetService.getAssetById(asset.id);
+      setSelectedAsset(fullAssetDetails);
+      setIsDetailModalOpen(true);
+    } catch (err) {
+      console.error('Failed to load asset details:', err);
+      setSelectedAsset(asset);
+      setIsDetailModalOpen(true);
+    }
   };
 
   const handleDownload = async (asset: Asset) => {

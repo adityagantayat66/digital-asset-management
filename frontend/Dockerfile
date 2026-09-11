@@ -8,4 +8,4 @@ RUN npm run build
 FROM alpine:latest AS runner
 WORKDIR /public
 COPY --from=builder /app/dist /public
-CMD ["sh", "-c", "cp -rf /public/* /dist-target/ && echo 'Frontend dist copied successfully'"]
+CMD ["sh", "-c", "rm -rf /dist-target/* && cp -rf /public/* /dist-target/ && echo 'Frontend dist copied successfully'"]

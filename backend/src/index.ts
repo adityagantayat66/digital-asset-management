@@ -31,6 +31,7 @@ app.use(
         scriptSrc: ["'self'", "'unsafe-inline'"], // allow inline scripts
         styleSrc: ["'self'", "'unsafe-inline'"], // allow inline styles
         imgSrc: ["'self'", 'data:', 'blob:', env.MINIO_PUBLIC_ENDPOINT, ...ALLOWED_ORIGINS],
+        mediaSrc: ["'self'", 'data:', 'blob:', env.MINIO_PUBLIC_ENDPOINT, ...ALLOWED_ORIGINS],
         connectSrc: ["'self'", 'ws:', 'wss:', ...ALLOWED_ORIGINS],
       },
     },

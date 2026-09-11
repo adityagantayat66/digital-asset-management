@@ -32,11 +32,14 @@ export interface Asset {
   originalName: string;
   mimeType: string;
   size: number;
-  rawPath: string;
+  rawPath?: string;
   thumbnailUrl: string | null;
-  transcodedSdUrl: string | null;
-  transcoded720pUrl: string | null;
-  transcoded1080pUrl: string | null;
+  transcodedSdUrl?: string | null;
+  transcoded720pUrl?: string | null;
+  transcoded1080pUrl?: string | null;
+  has1080p?: boolean;
+  has720p?: boolean;
+  hasSd?: boolean;
   checksum?: string | null;
   status: AssetStatus;
   errorMessage?: string | null;

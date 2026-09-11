@@ -61,6 +61,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_SERVER_URL: ${MINIO_PUBLIC_ENDPOINT}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -83,6 +84,11 @@ services:
     env_file:
       - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      ENABLE_HTTPS: ${ENABLE_HTTPS:-true}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-https://localhost:8443}
+      SECURE_FRONTEND_URLS: ${SECURE_FRONTEND_URLS:-https://localhost:8443,https://127.0.0.1:8443}
+      LOCAL_FRONTEND_URLS: ${LOCAL_FRONTEND_URLS:-http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080}
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-dam_db}?schema=public
       REDIS_HOST: redis
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672

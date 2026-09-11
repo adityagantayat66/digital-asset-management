@@ -1,7 +1,7 @@
-import { 
-  S3Client, 
-  PutObjectCommand, 
-  GetObjectCommand, 
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
   CopyObjectCommand,
   HeadBucketCommand,
@@ -129,9 +129,15 @@ export async function generatePresignedDownloadUrl(
   fileKey: string,
   expiresInSeconds = 3600
 ): Promise<string> {
+  if (!fileKey) return '';
+  let cleanKey = fileKey.replace(/^https?:\/\/[^\/]+/, '');
+  cleanKey = cleanKey.replace(/^\/?minio\//, '/');
+  cleanKey = cleanKey.replace(new RegExp(`^\\/?${bucket}\\/`), '/');
+  cleanKey = cleanKey.replace(/^\/+/, '');
+
   const command = new GetObjectCommand({
     Bucket: bucket,
-    Key: fileKey,
+    Key: cleanKey,
   });
 
   return await getSignedUrl(presignedS3Client, command, { expiresIn: expiresInSeconds });
@@ -145,12 +151,11 @@ export async function generatePresignedDownloadUrl(
  */
 export function getPublicAssetUrl(bucket: string, fileKey: string): string {
   if (!fileKey) return '';
-  if (fileKey.startsWith('http')) {
-    return fileKey
-      .replace(`http://${env.MINIO_ENDPOINT}:${env.MINIO_PORT}`, env.MINIO_PUBLIC_ENDPOINT)
-      .replace('http://minio:9000', env.MINIO_PUBLIC_ENDPOINT);
+  if (fileKey.startsWith('http://') || fileKey.startsWith('https://')) {
+    return fileKey.replace(/^https?:\/\/[^\/]+/, env.MINIO_PUBLIC_ENDPOINT);
   }
-  return `${env.MINIO_PUBLIC_ENDPOINT}/${bucket}/${fileKey}`;
+  const cleanKey = fileKey.replace(/^\/+/, '');
+  return `${env.MINIO_PUBLIC_ENDPOINT}/${bucket}/${cleanKey}`;
 }
 
 /**
