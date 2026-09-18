@@ -167,7 +167,8 @@ export async function confirmUpload(options: ConfirmUploadOptions): Promise<Conf
         updatedAt: new Date().toISOString(),
       });
 
-      // Invalidate gallery query caches in Redis
+      // Invalidate gallery and asset query caches in Redis
+      await redisClient.del(`cache:asset:${asset.id}`);
       const cacheKeys = await redisClient.keys('cache:gallery:*');
       if (cacheKeys.length > 0) {
         await redisClient.del(...cacheKeys);
@@ -269,9 +270,21 @@ export async function getGalleryAssets(options: ListAssetsOptions): Promise<Gall
       skip,
       take: limit,
       orderBy: { createdAt: 'desc' },
-      include: {
-        tags: { include: { tag: true } },
-        uploader: { select: { id: true, name: true, email: true } },
+      select: {
+        id: true,
+        originalName: true,
+        mimeType: true,
+        size: true,
+        status: true,
+        thumbnailUrl: true,
+        transcodedSdUrl: true,
+        transcoded720pUrl: true,
+        transcoded1080pUrl: true,
+        downloadCount: true,
+        createdAt: true,
+        updatedAt: true,
+        uploaderId: true,
+        tags: { select: { tag: { select: { name: true } } } },
       },
     }),
   ]);
@@ -292,7 +305,6 @@ export async function getGalleryAssets(options: ListAssetsOptions): Promise<Gall
       has720p: Boolean(asset.transcoded720pUrl),
       hasSd: Boolean(asset.transcodedSdUrl),
       tags: asset.tags.map((t) => t.tag.name),
-      uploader: asset.uploader,
     })),
     pagination: {
       page,
@@ -308,16 +320,38 @@ export async function getGalleryAssets(options: ListAssetsOptions): Promise<Gall
 }
 
 /**
- * @Description Retrieves single asset metadata and generates presigned download URLs for streaming media representations.
+ * @Description Retrieves single asset metadata and generates presigned download URLs for streaming media representations with 60-second Redis caching.
  * @Params id (string) - Asset UUID
  * @Returns Promise<AssetDetailsResult> - Detailed asset metadata with presigned streaming URLs
  */
 export async function getAssetDetails(id: string): Promise<AssetDetailsResult> {
+  const cacheKey = `cache:asset:${id}`;
+
+  // 1. Check Redis Cache
+  const cachedData = await redisClient.get(cacheKey);
+  if (cachedData) {
+    return JSON.parse(cachedData);
+  }
+
+  // 2. Query PostgreSQL Database
   const asset = await prisma.asset.findUnique({
     where: { id },
-    include: {
-      tags: { include: { tag: true } },
-      uploader: { select: { id: true, name: true, email: true } },
+    select: {
+      id: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      status: true,
+      thumbnailUrl: true,
+      transcodedSdUrl: true,
+      transcoded720pUrl: true,
+      transcoded1080pUrl: true,
+      downloadCount: true,
+      createdAt: true,
+      updatedAt: true,
+      uploaderId: true,
+      tags: { select: { tag: { select: { name: true } } } },
+      uploader: { select: { id: true, name: true } },
     },
   });
 
@@ -333,7 +367,7 @@ export async function getAssetDetails(id: string): Promise<AssetDetailsResult> {
   const transcoded720pUrl = asset.transcoded720pUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.transcoded720pUrl) : null;
   const transcoded1080pUrl = asset.transcoded1080pUrl ? getPublicAssetUrl(env.MINIO_PROCESSED_BUCKET, asset.transcoded1080pUrl) : null;
 
-  return {
+  const result: AssetDetailsResult = {
     ...asset,
     thumbnailUrl,
     transcodedSdUrl,
@@ -341,6 +375,11 @@ export async function getAssetDetails(id: string): Promise<AssetDetailsResult> {
     transcoded1080pUrl,
     tags: asset.tags.map((t) => t.tag.name),
   };
+
+  // 3. Cache result in Redis for 60 seconds
+  await redisClient.setex(cacheKey, 60, JSON.stringify(result));
+
+  return result;
 }
 
 /**

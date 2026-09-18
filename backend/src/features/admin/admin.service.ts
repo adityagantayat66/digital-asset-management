@@ -251,7 +251,8 @@ export async function deleteFailedAssets(assetId: string): Promise<DeleteAssetRe
     }
     // 2. Delete database record
     await prisma.asset.delete({ where: { id: assetId } });
-    // 3. Invalidate Redis gallery caches
+    // 3. Invalidate Redis asset and gallery caches
+    await redisClient.del(`cache:asset:${assetId}`);
     const cacheKeys = await redisClient.keys('cache:gallery:*');
     if (cacheKeys.length > 0) await redisClient.del(...cacheKeys);
     return { success: true };

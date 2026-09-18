@@ -262,6 +262,9 @@ export async function getAssetById(req: Request, res: Response): Promise<void> {
 
     const asset = await getAssetDetails(id);
 
+    // Set HTTP Cache-Control header for browser caching (private, max-age=60s, stale-while-revalidate=300s)
+    res.setHeader('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
+
     sendSuccess(res, asset, 'Asset metadata fetched successfully', HttpStatus.OK);
   } catch (error: any) {
     console.error(`❌ [${FUNCTION_NAME}] Failed to fetch asset details for ID ${req.params?.id}:`, error);

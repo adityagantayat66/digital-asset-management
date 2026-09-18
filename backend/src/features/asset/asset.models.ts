@@ -47,7 +47,7 @@ export interface GalleryAssetsResult {
   pagination: PaginationData;
 }
 
-export interface AssetDetailsResult extends Omit<Asset, 'tags'> {
+export interface AssetDetailsResult extends Omit<Asset, 'tags' | 'checksum' | 'rawPath' | 'errorMessage'> {
   thumbnailUrl: string | null;
   transcodedSdUrl: string | null;
   transcoded720pUrl: string | null;
