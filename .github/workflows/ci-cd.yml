@@ -1,0 +1,74 @@
+name: DAM Platform CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  # ==========================================
+  # STAGE 1: Continuous Integration (Quality check)
+  # ==========================================
+  quality-check:
+    name: 🛡️ Code Quality & TypeScript Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: 🔍 Check Backend TypeScript & Prisma
+        run: |
+          cd backend
+          npm ci
+          npx prisma generate
+          npx tsc --noEmit
+
+      - name: 🔍 Check Worker Service TypeScript
+        run: |
+          cd worker
+          npm ci
+          npx prisma generate
+          npx tsc --noEmit
+
+      - name: 🔍 Check Logger Microservice TypeScript
+        run: |
+          cd logger
+          npm ci
+          npx tsc --noEmit
+
+      - name: 🔍 Check Frontend React & Build
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+  # ==========================================
+  # STAGE 2: Continuous Deployment (Self-Hosted Local Runner)
+  # ==========================================
+  local-deploy:
+    name: 🚢 Deploy to Local Machine
+    needs: quality-check
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+
+    steps:
+      - name: 📥 Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Rebuild & Deploy Local Docker Stack
+        working-directory: ./
+        run: |
+          docker compose build
+          docker stack deploy -c --resolve-image=never docker-compose.yml dam || docker compose up -d
