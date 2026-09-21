@@ -80,3 +80,4 @@ jobs:
         run: |
           docker compose build
           docker stack deploy -c docker-compose.yml --resolve-image=never dam
+#runner wd= C:\WINDOWS\system32\actions-runner

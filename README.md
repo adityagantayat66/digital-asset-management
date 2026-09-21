@@ -265,6 +265,56 @@ docker stack rm dam
 
 ---
 
+## 🔄 CI/CD Pipeline Architecture
+
+The project features a automated 2-stage CI/CD workflow managed by GitHub Actions ([`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)).
+
+```
++-----------------------------------------------------------------------------------+
+|                                  CI/CD PIPELINE                                   |
+|                                                                                   |
+|  [ Push / PR Event ]                                                              |
+|          |                                                                        |
+|          v                                                                        |
+|  +-----------------------------------------------------------------------------+  |
+|  | STAGE 1: Continuous Integration (ubuntu-latest cloud runner)              |  |
+|  |                                                                             |  |
+|  | +------------------+  +------------------+  +------------------+ +--------+ |  |
+|  | | Backend TS Check |  | Worker TS Check  |  | Logger TS Check  | |Frontend| |  |
+|  | | (Prisma + tsc)   |  | (Prisma + tsc)   |  | (Prisma + tsc)   | | Build  | |  |
+|  | +------------------+  +------------------+  +------------------+ +--------+ |  |
+|  +---------------------------------------+-------------------------------------+  |
+|                                          |                                        |
+|                                          v (Passes on 'main' branch)              |
+|  +-----------------------------------------------------------------------------+  |
+|  | STAGE 2: Continuous Deployment (self-hosted local runner)                  |  |
+|  |                                                                             |  |
+|  | 1. Auto-generate .env and runtime directories (Error-Logs, nginx/ssl)     |  |
+|  | 2. Rebuild container images (docker compose build)                         |  |
+|  | 3. Zero-downtime stack deployment (docker stack deploy)                   |  |
+|  +-----------------------------------------------------------------------------+  |
++-----------------------------------------------------------------------------------+
+```
+
+### Stage 1: Continuous Integration (`quality-check`)
+* **Runner**: `ubuntu-latest`
+* **Trigger**: On all pushes and pull requests to `main` and `dev` branches.
+* **Checks**:
+  * **Backend Service**: Installs packages, generates Prisma Client (`npx prisma generate`), and executes static type checks (`npx tsc --noEmit`).
+  * **Worker Service**: Generates Prisma Client and runs static type checks (`npx tsc --noEmit`).
+  * **Logger Microservice**: Generates Logger Prisma Client and runs static type checks (`npx tsc --noEmit`).
+  * **Frontend SPA**: Installs dependencies and verifies production React build (`npm run build`).
+
+### Stage 2: Continuous Deployment (`local-deploy`)
+* **Runner**: `self-hosted` (Local Windows Deployment Agent)
+* **Trigger**: Automatically executes after Stage 1 succeeds when pushing to `main`.
+* **Steps**:
+  1. **Config & Directory Auto-Provisioning**: Verifies host environment `.env` (copies `.env.example` if missing) and pre-creates required volume bind directories (`Error-Logs/`, `nginx/ssl/`).
+  2. **Container Image Rebuild**: Runs `docker compose build` to build fresh multi-stage container images.
+  3. **Zero-Downtime Deployment**: Executes `docker stack deploy -c docker-compose.yml --resolve-image=never dam` to perform rolling updates across the Docker Swarm cluster.
+
+---
+
 ## 🌐 Service Ports & Access Dashboards
 
 | Service | Address / URL | Description | Default Dev Credentials |
