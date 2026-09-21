@@ -68,10 +68,11 @@ jobs:
       - name: 📥 Checkout Repository Code
         uses: actions/checkout@v4
 
-      - name: 🔑 Ensure Environment Config
+      - name: 🔑 Ensure Environment Config & Folders
         shell: powershell
         run: |
           if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+          if (-not (Test-Path Error-Logs)) { New-Item -ItemType Directory -Force -Path Error-Logs }
 
       - name: 🚀 Rebuild & Deploy Local Docker Stack
         working-directory: ./
