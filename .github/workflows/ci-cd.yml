@@ -77,4 +77,4 @@ jobs:
         working-directory: ./
         run: |
           docker compose build
-          docker stack deploy -c docker-compose.yml --resolve-image=never dam || docker compose up -d
+          docker stack deploy -c docker-compose.yml --resolve-image=never dam
