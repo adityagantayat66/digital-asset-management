@@ -315,30 +315,55 @@ The project features a automated 2-stage CI/CD workflow managed by GitHub Action
 
 ---
 
-## 🌐 Service Ports & Access Dashboards
+## 🌐 Service Ports & Ingress Dashboards
 
 | Service | Address / URL | Description | Default Dev Credentials |
 | :--- | :--- | :--- | :--- |
-| **Nginx Ingress / Frontend SPA** | `http://localhost:8080` | Production Ingress Web Gateway | - |
-| **Frontend Dev Server** | `http://localhost:3000` | Direct Frontend Vite App | - |
-| **Backend API Gateway** | `http://localhost:5000` | REST API & SSE Progress Stream | - |
-| **MinIO Web Console** | `http://localhost:9001` | S3 Object Storage Browser | `minioadmin` / `minioadmin` |
-| **MinIO S3 API Endpoint** | `http://localhost:9000` | S3 REST Service Endpoint | `minioadmin` / `minioadmin` |
-| **RabbitMQ Management UI** | `http://localhost:15672` | AMQP Queue Broker Dashboard | `guest` / `guest` |
-| **Redis In-Memory Database** | `localhost:6379` | Cache & Pub/Sub (`redis-cli`) | - |
+| **Nginx Ingress (HTTPS TLS)** | `https://localhost:8443` | Production SSL Ingress Gateway & React SPA | - |
+| **Nginx Ingress (HTTP)** | `http://localhost:8080` | Production HTTP Ingress Gateway & React SPA | - |
+| **Frontend Dev Server** | `http://localhost:3000` | Direct Frontend Vite App (Hot Reload) | - |
+| **Backend API Gateway** | `http://localhost:5000` | Direct Express REST API & SSE Progress Stream | - |
+| **MinIO Web Console** | `http://localhost:9001` | S3 Object Storage Browser UI | `minioadmin` / `minioadmin` |
+| **MinIO S3 API Endpoint** | `http://localhost:9000` | S3 REST Service API Endpoint | `minioadmin` / `minioadmin` |
+| **RabbitMQ Management UI** | `http://localhost:15672` | AMQP Queue Broker Management Dashboard | `guest` / `guest` |
+| **Redis In-Memory Database** | `localhost:6379` | Cache, Pub/Sub Bus, & Locks (`redis-cli`) | - |
 | **PostgreSQL Database** | `localhost:5433` (container 5432) | Relational Database (`dam_db`) | `postgres` / `postgres` |
+
+---
+
+### 🛡️ Nginx Security & Routing Specification (`nginx.conf`)
+
+* **Dual-Port Ingress**: Listens on HTTP port `8080` and SSL/TLS port `8443` (supporting TLSv1.2 & TLSv1.3 with modern ciphers).
+* **2-Zone Leaky Bucket Rate Limiting**:
+  * **General API Zone (`/api`)**: `10 req/s` per IP (burst `20`, `nodelay`). Breaches automatically return `HTTP 429 Too Many Requests`.
+  * **Presigned Upload Zone (`/api/assets/presigned-url`)**: Strict `2 req/s` per IP (burst `5`, `nodelay`) to prevent presigned URL abuse.
+* **Internal Cookie-Auth Guard (`auth_request`)**:
+  * Requests to `/(raw-assets|processed-assets)/` trigger an internal Nginx subrequest (`/api/auth/verify-cookie`) to validate HTTP-only `dam_token` JWT cookies before proxying to MinIO `http://minio:9000`.
+  * Large media stream payloads up to `5000MB` (`client_max_body_size 5000M`) pass through securely.
 
 ---
 
 ## 📊 Health Check & Diagnostic Commands
 
 ```bash
-# Inspect API Gateway logs
+# 1. Inspect Nginx ingress proxy logs (rate-limiting & routing)
+docker compose logs -f nginx
+
+# 2. Inspect API Gateway logs
 docker compose logs -f dam-backend
 
-# Inspect background worker cluster logs
+# 3. Inspect background worker cluster & transcoding logs
 docker compose logs -f worker
 
-# Check active Redis keys and Pub/Sub activity
+# 4. Inspect system logger microservice logs
+docker compose logs -f logger
+
+# 5. Check active Redis cache keys, Pub/Sub channels, and rate-limit counters
 docker exec -it dam-redis redis-cli keys "*"
+
+# 6. Query PostgreSQL relational database
+docker exec -it dam-postgres psql -U postgres -d dam_db
+
+# 7. Check running Docker Swarm stack services
+docker stack services dam
 ```
