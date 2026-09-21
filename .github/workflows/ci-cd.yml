@@ -31,27 +31,27 @@ jobs:
       - name: 🔍 Check Backend TypeScript & Prisma
         run: |
           cd backend
-          npm ci
+          npm install
           npx prisma generate
           npx tsc --noEmit
 
       - name: 🔍 Check Worker Service TypeScript
         run: |
           cd worker
-          npm ci
+          npm install
           npx prisma generate
           npx tsc --noEmit
 
       - name: 🔍 Check Logger Microservice TypeScript
         run: |
           cd logger
-          npm ci
+          npm install
           npx tsc --noEmit
 
       - name: 🔍 Check Frontend React & Build
         run: |
           cd frontend
-          npm ci
+          npm install
           npm run build
 
   # ==========================================
