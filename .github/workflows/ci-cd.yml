@@ -73,6 +73,7 @@ jobs:
         run: |
           if (-not (Test-Path .env)) { Copy-Item .env.example .env }
           if (-not (Test-Path Error-Logs)) { New-Item -ItemType Directory -Force -Path Error-Logs }
+          if (-not (Test-Path nginx/ssl)) { New-Item -ItemType Directory -Force -Path nginx/ssl }
 
       - name: 🚀 Rebuild & Deploy Local Docker Stack
         working-directory: ./
