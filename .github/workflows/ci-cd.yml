@@ -68,8 +68,13 @@ jobs:
       - name: 📥 Checkout Repository Code
         uses: actions/checkout@v4
 
+      - name: 🔑 Ensure Environment Config
+        shell: powershell
+        run: |
+          if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+
       - name: 🚀 Rebuild & Deploy Local Docker Stack
         working-directory: ./
         run: |
           docker compose build
-          docker stack deploy -c docker-compose.yml --resolve-image=never dam
+          docker stack deploy -c docker-compose.yml --resolve-image=never dam || docker compose up -d
